@@ -14,10 +14,12 @@ n_I4_ls = 1; % (1) I1, (2) I1 & I2, (3) I1, I2 & I3
 n_I     = n_I4_ls + n_I4; % + I4(i)
 I_list  = [1 2:n_I]; % list of invariants
 
-for i = 1:n_I4
-    g(i,:) = [cosd(c0(4+i)), sind(c0(4+i)), 0];
-    g(i,:) = g(i,:)./norm(g(i,:));
-end
+g = zeros(n_I4,3);
+g(:,1:2) = [cosd(c0(5:end))' sind(c0(5:end))'];
+% for i = 1:n_I4
+%     g(i,:) = [cosd(c0(4+i)), sind(c0(4+i)), 0];
+% %     g(i,:) = g(i,:) / norm(g(i,:));
+% end
 
 % Construct F
 % GS: (1) general solution, (2) special solution
@@ -29,7 +31,6 @@ I       = zeros(data_size,n_I);
 dWI     = zeros(data_size,n_I);
 sigma   = zeros(data_size,2);
 p       = zeros(data_size,1);
-W       = zeros(data_size,1);
 
 switch GS
     case 1
@@ -37,6 +38,7 @@ switch GS
     case 2
         C = F.*F;
         I(:,1) = sum(C,2);
+        I(:,2:end) = (g(:,1:2).^2 * C(:,1:2)')';
 end
 
 % Stress calculation
@@ -53,9 +55,9 @@ for i = 1:data_size
                 inv = I_list(j+n_I4_ls);
                 I(i,inv) = g(j,:) * C(:,:,i) * g(j,:)';
             end
-        case 2
-            % Calculate the invariants
-            I(i,2:end) = diag(g * diag(C(i,:)) * g')';
+%         case 2
+%             % Calculate the invariants
+%             I(i,2:end) = diag(g * diag(C(i,:)) * g')';
     end
     % Calculate dW/dI
     for inv = I_list
@@ -82,8 +84,8 @@ for i = 1:data_size
             % Calculate pressure, using BC: sigma_33 = 0
             p(i,1)      = F(i,3)^2 * S_PK2(3,3);
             % Calculate sigma_11 & sigma_22
-            sigma(i,1)  = round( F(i,1)^2 * S_PK2(1,1) + p(i,1) , 4);
-            sigma(i,2)  = round( F(i,2)^2 * S_PK2(2,2) + p(i,1) , 4);
+            sigma(i,1)  = round( F(i,1)^2 * S_PK2(1,1) - p(i,1) , 4);
+            sigma(i,2)  = round( F(i,2)^2 * S_PK2(2,2) - p(i,1) , 4);
     end
 
     %     % Calculate energy
