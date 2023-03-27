@@ -16,8 +16,6 @@ n_I     = n_I4_ls + n_I4; % + I4(i)
 I_list  = [1 2:n_I]; % list of invariants
 g = zeros(n_I4,3);
 
-
-
 % Construct F
 % GS: (1) general solution, (2) special solution
 GS = 2;
@@ -33,14 +31,14 @@ switch GS
     case 1
         C = zeros(3,3,data_size);
         for i = 1:n_I4
-            g(i,:) = [cosd(c0(4+i)), sind(c0(4+i)), 0];
-            g(i,:) = g(i,:) / norm(g(i,:));
+            g(i,:)  = [cosd(c0(4+i)), sind(c0(4+i)), 0];
+            g(i,:)  = g(i,:) / norm(g(i,:));
         end
     case 2
         C = F.*F;
-        I(:,1) = sum(C,2);
-        I(:,2:end) = (g(:,1:2).^2 * C(:,1:2)')';
-        g(:,1:2) = [cosd(c0(5:end))' sind(c0(5:end))'];
+        g(:,1:2)    = [cosd(c0(5:end))' sind(c0(5:end))'];
+        I(:,1)      = sum(C,2);
+        I(:,2:end)  = (g(:,1:2).^2 * C(:,1:2)')';
 end
 
 % Stress calculation
