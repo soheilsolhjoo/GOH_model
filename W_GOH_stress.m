@@ -6,6 +6,7 @@ function [sigma, I, dWI] = W_GOH_stress(lambda, W_par)
 % W_par : parameters of W
 
 del_I   = 1e-6; % delta_I for calculating derivative of W wrt I
+nDig    = 6; % number of digits used to round the calculated sigma
 
 % Assigining W and W_par
 c0      = W_par;
@@ -13,13 +14,9 @@ n_I4    = (numel(c0) - 4);
 n_I4_ls = 1; % (1) I1, (2) I1 & I2, (3) I1, I2 & I3
 n_I     = n_I4_ls + n_I4; % + I4(i)
 I_list  = [1 2:n_I]; % list of invariants
-
 g = zeros(n_I4,3);
-g(:,1:2) = [cosd(c0(5:end))' sind(c0(5:end))'];
-% for i = 1:n_I4
-%     g(i,:) = [cosd(c0(4+i)), sind(c0(4+i)), 0];
-% %     g(i,:) = g(i,:) / norm(g(i,:));
-% end
+
+
 
 % Construct F
 % GS: (1) general solution, (2) special solution
@@ -35,10 +32,15 @@ p       = zeros(data_size,1);
 switch GS
     case 1
         C = zeros(3,3,data_size);
+        for i = 1:n_I4
+            g(i,:) = [cosd(c0(4+i)), sind(c0(4+i)), 0];
+            g(i,:) = g(i,:) / norm(g(i,:));
+        end
     case 2
         C = F.*F;
         I(:,1) = sum(C,2);
         I(:,2:end) = (g(:,1:2).^2 * C(:,1:2)')';
+        g(:,1:2) = [cosd(c0(5:end))' sind(c0(5:end))'];
 end
 
 % Stress calculation
@@ -78,14 +80,14 @@ for i = 1:data_size
             % Calculate pressure, using BC: sigma_33 = 0
             p(i,1)      = F(3,3,i)^2 * S_PK2(3,3);
             % Calculate sigma_11 & sigma_22
-            sigma(i,1)  = round( F(1,1,i)^2 * S_PK2(1,1) + p(i,1) , 4);
-            sigma(i,2)  = round( F(2,2,i)^2 * S_PK2(2,2) + p(i,1) , 4);
+            sigma(i,1)  = round( F(1,1,i)^2 * S_PK2(1,1) - p(i,1) , nDig);
+            sigma(i,2)  = round( F(2,2,i)^2 * S_PK2(2,2) - p(i,1) , nDig);
         case 2
             % Calculate pressure, using BC: sigma_33 = 0
             p(i,1)      = F(i,3)^2 * S_PK2(3,3);
             % Calculate sigma_11 & sigma_22
-            sigma(i,1)  = round( F(i,1)^2 * S_PK2(1,1) - p(i,1) , 4);
-            sigma(i,2)  = round( F(i,2)^2 * S_PK2(2,2) - p(i,1) , 4);
+            sigma(i,1)  = round( F(i,1)^2 * S_PK2(1,1) - p(i,1) , nDig);
+            sigma(i,2)  = round( F(i,2)^2 * S_PK2(2,2) - p(i,1) , nDig);
     end
 
     %     % Calculate energy
