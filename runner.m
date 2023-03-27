@@ -41,7 +41,7 @@ ss_22 = [sb_22; sx_22; sy_22];
 % NOTE: the number of directions should be known.
 % The direction can changes between 0 and 180 degrees
 % c0  = [0, 0, 0, 0, [95,85]]; %#ok<> : the last [] is to list all directions
-c0  = [0, 0, 0, 0, [85,95]]; %#ok<> : the last [] is to list all directions
+c0  = [0, 0, 0, 0, [1,2]]; %#ok<> : the last [] is to list all directions
 CF = 1;     % COST FUNCTION
 dirC = 1;    % calibrate direction: 0 (False) or 1 (True)
 [optC_GS, fval, W_func]  = W_calibrator([ss_11 ss_22], c0, CF, dirC);
@@ -65,44 +65,44 @@ plot(sb_temp(:,1),sb_GOH_GS(:,1),'b-')
 plot(sb_temp(:,2),sb_GOH_GS(:,2),'r-')
 hold off
 
-% sx_GOH_GS = W_GOH_stress(sx_lam, optC_GS);
-% ss_plot([sx_11 sx_22],"Off-biaxial X")
-% hold on;
-% plot(sx_lam(:,1),sx_GOH_GS(:,1),'b-')
-% plot(sx_lam(:,2),sx_GOH_GS(:,2),'r-')
-% hold off
-% 
-% sy_GOH_GS = W_GOH_stress(sy_lam, optC_GS);
-% ss_plot([sy_11 sy_22],"Off-biaxial Y")
-% hold on;
-% plot(sy_lam(:,1),sy_GOH_GS(:,1),'b-')
-% plot(sy_lam(:,2),sy_GOH_GS(:,2),'r-')
-% hold off
+sx_GOH_GS = W_GOH_stress(sx_temp, optC_GS);
+ss_plot([sx_11 sx_22],"Off-biaxial X")
+hold on;
+plot(sx_temp(:,1),sx_GOH_GS(:,1),'b-')
+plot(sx_temp(:,2),sx_GOH_GS(:,2),'r-')
+hold off
+
+sy_GOH_GS = W_GOH_stress(sy_temp, optC_GS);
+ss_plot([sy_11 sy_22],"Off-biaxial Y")
+hold on;
+plot(sy_temp(:,1),sy_GOH_GS(:,1),'b-')
+plot(sy_temp(:,2),sy_GOH_GS(:,2),'r-')
+hold off
 %%
-close all
+% close all
 cal_e = zeros(size(sb_temp,1),1);
 for i = 1:2
     cal_e(:,1) = cal_e(:,1) + cumtrapz(log(sb_temp(:,i)), sb_GOH_GS(:,i));
 end
 
 energy = GOH_energy(optC_GS,invariants);
-% e_temp = energy;
 e_temp = energy - energy(1);
-% close all
+close all
 figure 
 hold on
 plot(sb_temp(:,1), e_temp,'b-')
-% plot(sb_temp(:,2), e_temp,'r-')
+plot(sb_temp(:,2), e_temp,'b-')
 
 plot(sb_temp(:,1), cal_e,'r--')
-% plot(sb_temp(:,2), cal_e,'r--')
-
-% plot(sb_temp(:,1), cal_e(:,1),'b*')
-% plot(sb_temp(:,2), cal_e(:,2),'r*')
+plot(sb_temp(:,2), cal_e,'r--')
+hold off
 %% stress = d_energy / d_strain
-% sig_der = gradient(energy)./gradient(sb_temp).*invariants(:,3).^2;
-% ss_plot([sb_11 sb_22],"Equibiaxial")
-% hold on;
-% plot(sb_temp(:,1),sig_der(:,1),'b-')
-% plot(sb_temp(:,2),sig_der(:,2),'r-')
+% sig_der = gradient(energy)./gradient(log(sb_temp)).*invariants(:,3).^2;
+% % ss_plot([sb_11 sb_22],"Equibiaxial")
+% figure; hold on;
+% plot(sb_temp(:,1),sb_GOH_GS(:,1),'b-')
+% plot(sb_temp(:,2),sb_GOH_GS(:,2),'r-')
+% 
+% plot(sb_temp(:,1),sig_der(:,1),'b--')
+% plot(sb_temp(:,2),sig_der(:,2),'r--')
 % hold off
