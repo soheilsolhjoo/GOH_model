@@ -21,9 +21,8 @@ end
 % lower and upper bounds of the variables
 lb = zeros([1,numel(W_par)]);
 ub = 5 * ones([1,numel(W_par)]);
-lb(1) = 1e-7;
-% ub([3 4]) = [15 1/3];
-ub(4) = 1/3;
+ub([3 4]) = [15 1/3];
+% ub(4) = 1/3;
 ub(:,5:end) = 180;
 
 % separating Lambda and Stress
