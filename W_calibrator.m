@@ -9,8 +9,7 @@ s0_weight = 1000; % weight of enforcing stress(stretch = 0) = 0 in CF
 switch dir_option
     % OPTION 0: use the assigned direction angle(s) and make no changes
     case 0
-        theta = W_par(5:end);
-        W_func = @(lambda,  W_parameters) W_GOH_stress(lambda,  [W_parameters theta]);
+        W_func = @(lambda,  W_parameters) W_GOH_stress(lambda,  [W_parameters W_par(5:end)]);
         W_par(5:end) = [];
     % OPTION 1: optimize for the direction angle(s)
     case 1
