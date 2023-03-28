@@ -8,7 +8,8 @@ kap = c(4);
 n_I4= numel(I(1,:)) - 1;
 
 W_iso   = C1 * (I(:,1)-3);
-E       = kap * (I(:,1)-3) + (1-3*kap) * (I(:,2:2+n_I4-1)-1);
+% E       = kap * (I(:,1)-3) + (1-3*kap) * (I(:,2:2+n_I4-1)-1);
+E       = kap * I(:,1) + (1-3*kap) * I(:,2:2+n_I4-1) - 1;
 E       = (abs(E) + E)./2;
 W_aniso = k1 / (2 * k2) * sum(exp((k2 * E.^2)-1),2);
 W       = W_iso + W_aniso;
