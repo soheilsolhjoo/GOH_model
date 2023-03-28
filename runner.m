@@ -40,16 +40,16 @@ ss_22 = [sb_22; sx_22; sy_22];
 % c: C10, k1, k2, kappa, [theta(s)(in degrees)]
 % NOTE: the number of directions should be known.
 % The direction can changes between 0 and 180 degrees
-% c0  = [0, 0, 0, 0, [95,85]]; %#ok<> : the last [] is to list all directions
-c0  = [0, 0, 0, 0, [1,2]]; %#ok<> : the last [] is to list all directions
+% c0  = [0, 0, 0, 0, [95,85]]; %the last [] is to list all directions
+c0  = [0, 0, 0, 0, [85]]; %#ok
 CF = 1;     % COST FUNCTION
-dirC = 1;    % calibrate direction: 0 (False) or 1 (True)
+dirC = 0;    % calibrate direction: 0 (False) or 1 (True)
 [optC_GS, fval, W_func]  = W_calibrator([ss_11 ss_22], c0, CF, dirC);
 
 %%
-file_name = "optC\CF1_dirC1_dir2.mat";
-save(file_name, "optC_GS","fval", '-mat');
-% load(file_name)
+file_name = "optC\CF1_dirC0_dir1.mat";
+% save(file_name, "optC_GS","fval", "W_func", '-mat');
+load(file_name)
 %% Visualize the results
 sb_temp = [ linspace(sb_lam(1,1),sb_lam(end,1))', ...
             linspace(sb_lam(1,2),sb_lam(end,2))'];
@@ -58,21 +58,21 @@ sx_temp = [ linspace(sx_lam(1,1),sx_lam(end,1))', ...
 sy_temp = [ linspace(sy_lam(1,1),sy_lam(end,1))', ...
             linspace(sy_lam(1,2),sy_lam(end,2))'];
 
-[sb_GOH_GS, invariants, d_energy] = W_GOH_stress(sb_temp, optC_GS);
+[sb_GOH_GS, invariants, d_energy] = W_func(sb_temp, optC_GS);
 ss_plot([sb_11 sb_22],"Equibiaxial")
 hold on;
 plot(sb_temp(:,1),sb_GOH_GS(:,1),'b-')
 plot(sb_temp(:,2),sb_GOH_GS(:,2),'r-')
 hold off
 
-sx_GOH_GS = W_GOH_stress(sx_temp, optC_GS);
+sx_GOH_GS = W_func(sx_temp, optC_GS);
 ss_plot([sx_11 sx_22],"Off-biaxial X")
 hold on;
 plot(sx_temp(:,1),sx_GOH_GS(:,1),'b-')
 plot(sx_temp(:,2),sx_GOH_GS(:,2),'r-')
 hold off
 
-sy_GOH_GS = W_GOH_stress(sy_temp, optC_GS);
+sy_GOH_GS = W_func(sy_temp, optC_GS);
 ss_plot([sy_11 sy_22],"Off-biaxial Y")
 hold on;
 plot(sy_temp(:,1),sy_GOH_GS(:,1),'b-')
@@ -87,7 +87,7 @@ end
 
 energy = GOH_energy(optC_GS,invariants);
 e_temp = energy - energy(1);
-close all
+% close all
 figure 
 hold on
 plot(sb_temp(:,1), e_temp,'b-')
