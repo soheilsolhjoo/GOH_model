@@ -7,7 +7,7 @@ clear; clc; close all;
 % "Lambda11, Lambda22, Sigma11MPa, Sigma22MPa".
 % Moreover, the measured data starts from the second row.
 
-data_dir    = 'dataset';
+data_dir    = '..\dataset';
 csvfiles    = dir(fullfile(data_dir, '*.csv'));
 s_b     = importfile(fullfile(data_dir, csvfiles(1).name)); % Equibiaxial
 s_x     = importfile(fullfile(data_dir, csvfiles(2).name)); % Off-biaxial X

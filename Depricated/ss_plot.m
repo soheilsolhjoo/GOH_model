@@ -1,4 +1,6 @@
 function ss_plot(dataset,name)
+figure
+
 if istable(dataset)
     plot(dataset.Lambda11,dataset.Sigma11MPa,'.')
     hold on
