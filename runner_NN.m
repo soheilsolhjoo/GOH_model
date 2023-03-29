@@ -18,11 +18,12 @@ W_2 = W_2 - W_2(1);
 
 F0 = lambda;           % X
 W0 = [W_b;W_1;W_2]';    % Y
+
 %% Deep NN
 numLayers   = 5;
-numNeurons  = 10;
-numOrient   = 1; % to be used later by adding it to numOutput
-numInput    = 2; % I1, I4(n)
+numNeurons  = 5;
+numOrient   = 2; % to be used later by adding it to numOutput
+numInput    = 1+numOrient; % I1, I4(n)
 numOutput   = 2+numOrient; % W, W'_1, W'_4(n), TO BE ADDED : alpha
 
 parameters = struct;
@@ -42,59 +43,73 @@ numIn = numNeurons;
 parameters.("fc" + numLayers + "_Weights") = initializeHe(sz,numIn,"double");
 parameters.("fc" + numLayers + "_Bias") = initializeZeros([numOutput 1],"double");
 %% fmincon options
-iter = 1000;
+iter = 2000;
 options = optimoptions("fmincon", ...
     HessianApproximation="lbfgs", ...
     MaxIterations=iter, ...
     MaxFunctionEvaluations=iter, ...
-    OptimalityTolerance=1e-8, ...
     SpecifyObjectiveGradient=true);
+
+% options = optimoptions(@lsqnonlin,'Algorithm','levenberg-marquardt',...
+%     'MaxFunctionEvaluations',iter);
 %%
 [parametersV,parameterNames,parameterSizes] = parameterStructToVector(parameters);
 parametersV = extractdata(parametersV);
 
 % F0 = dlarray(F0,"CB");
 W0 = dlarray(W0,"CB");
+S0 = dlarray(stress,"CB");
 
 objFun = @(parameters) ...
-    objectiveFunction(parameters,F0,W0,parameterNames,parameterSizes);
+    objectiveFunction(parameters,F0,W0,S0,parameterNames,parameterSizes);
 parametersV = fmincon(objFun,parametersV,[],[],[],[],[],[],[],options);
+% parametersV = lsqnonlin(objFun,parametersV,[],[],[],[],[],[],[],options);
 
 parameters = parameterVectorToStruct(parametersV,parameterNames,parameterSizes);
 save('parameters','parameters');
 
 %% evaluate
 
-W_pred = model(parameters,F0);
+orient  = [0,90];
+g  = calc_g(orient);     % direction(s)
+I0 = calc_l2i(g, F0);  % invariants
+I0 = dlarray(I0,"BC");
+W_pred = model(parameters,I0);
 
 figure 
 hold on
-plot(W_pred,W0,'b*');
+plot(W_pred(1,:) - W_pred(1,1),W0,'b*');
 pline = [min(W0) ceil(max(W0)*1000)/1000];
 plot(pline,pline,'r-');
 hold off
 
+S_pred = calc_sig(g, extractdata(W_pred(2:end,:))', F0);
 
-
+figure; hold on
+plot(S0(:,1))
+plot(S_pred(:,1))
+hold off
+figure; hold on
+plot(S0(:,end))
+plot(S_pred(:,end))
+hold off
 
 
 
 %% fmincon
-function [loss,gradientsV] = objectiveFunction(parametersV,F0,W0,parameterNames,parameterSizes)
+function [loss,gradientsV] = objectiveFunction(parametersV,F0,W0,S0,parameterNames,parameterSizes)
 
 % Convert parameters to structure of dlarray objects.
 parametersV = dlarray(parametersV);
 parameters = parameterVectorToStruct(parametersV,parameterNames,parameterSizes);
 
-orient  = 45;
+orient  = [0,90];
 g  = calc_g(orient);     % direction(s)
 I0 = calc_l2i(g, F0);  % invariants
-I1  = dlarray(I0(:,1),"BC");
-I41 = dlarray(I0(:,2),"BC");
 I0 = dlarray(I0,"BC");
 
 % Evaluate model loss and gradients.
-[loss,gradients] = dlfeval(@modelLoss,parameters,W0,I0);
+[loss,gradients] = dlfeval(@modelLoss,parameters,I0,W0,S0,g,F0);
 
 % Return loss and gradients for fmincon.
 gradientsV = parameterStructToVector(gradients);
@@ -106,7 +121,9 @@ end
 
 
 %%
-function [loss,gradients] = modelLoss(parameters,W0,I0)
+function [loss,gradients] = modelLoss(parameters,I0,W0,S0,g,F0)
+
+
 % Calculate I
 % orient  = 45;
 % g  = calc_g(orient);     % direction(s)
@@ -114,20 +131,34 @@ function [loss,gradients] = modelLoss(parameters,W0,I0)
 
 % Make predictions with the initial conditions.
 model_pred = model(parameters,I0);
-W0Pred = model_pred(1,:);
+W0Pred = model_pred(1,:) - model_pred(1,1);
 
 % Calculate derivatives with respect to I0.
+% Automatic Derivative
 gradientsW = dlgradient(sum(W0Pred,"all"),{I0},EnableHigherDerivatives=true);
-dWI1 = gradientsW{1}(1,:);
-dWI41 = gradientsW{1}(2,:);
+dW_auto = gradientsW{1}(:,:);
+% dWI1 = gradientsW{1}(1,:);
+% dWI41 = gradientsW{1}(2,:);
+% % FDM Derivative
+% delI = 1e-6;
+% dW_FDM = zeros(size(I0));
+% for i=1:size(I0,1)
+%     v = zeros(size(I0,1),1);
+%     v(i) = 1;
+%     delI_i = delI * v;
+%     Wp = model(parameters,I0 + delI_i);
+%     Wn = model(parameters,I0 - delI_i);
+%     dW_FDM(i,:) = (Wp(1,:)-Wn(1,:)) / (2*delI);
+% end
+% msedWI = l2loss(dW_auto, dW_FDM);
 
+mseW = l2loss(W0Pred, W0);
+msedWI = l2loss(model_pred(2:end,:),dW_auto);
 
-% dWI     = calc_der(c, inv);     % derivative of energy wrt invariants
-% sigma = calc_sig(g, dWI, lambda);
-
-
-
-
+S_pred = dlarray(calc_sig(g, extractdata(model_pred(2:end,:))', F0),"CB");
+% mseS = sum((S_pred-S0).^2,"all") / size(S0,1);
+mseS = sqrt(l2loss(S_pred*1000,S0*1000));
+% mseS = norm(extractdata(S_pred-S0),'fro')/ size(S0,1);
 
 % 
 % % Calculate second-order derivatives with respect to X.
@@ -139,11 +170,14 @@ dWI41 = gradientsW{1}(2,:);
 % mseF = l2loss(f, zeroTarget);
 
 % Calculate mseU. Enforce initial and boundary conditions.
-mseU = l2loss(W0Pred, W0);
+
 
 % Calculated loss to be minimized by combining errors.
 % loss = mseF + mseU;
-loss = mseU;
+L1 = mseW - msedWI;
+L2 = mseS;
+
+loss = (L1^2 + L2^2) / (L1 + L2);
 
 % Calculate gradients with respect to the learnable parameters.
 gradients = dlgradient(loss,parameters);
