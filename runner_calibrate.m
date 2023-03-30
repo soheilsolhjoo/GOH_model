@@ -19,7 +19,7 @@ file_name = "optC\orient_2.mat";
 train = 0;
 
 if train
-    c0 =[0, 0, 0, 0, [1,2]]; %#ok
+    c0 =[0, 0, 0, 0, [1,2,3]]; %#ok
     [optC_GS, fval, W_func]  = W_calibrator(lambda, stress, c0);
     save(file_name, "optC_GS","fval", "W_func", '-mat');
 else
