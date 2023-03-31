@@ -16,10 +16,10 @@ lambda  = F_construct(lambda); %now Lambda = F = diag(l11,l22,l33)
 % c0  = [0, 0, 0, 0, [95,85]]; %the last [] is to list all directions
 
 file_name = "optC\orient_2.mat";
-train = 0;
+train = 1;
 
 if train
-    c0 =[0, 0, 0, 0, [1,2,3]]; %#ok
+    c0 =[0, 0, 0, 0, [1,2]]; %#ok
     [optC_GS, fval, W_func]  = W_calibrator(lambda, stress, c0);
     save(file_name, "optC_GS","fval", "W_func", '-mat');
 else
@@ -71,7 +71,7 @@ g   = calc_g(optC_GS(5:end));
 inv = calc_l2i(g, sb_temp);
 energy = calc_i2p(optC_GS, inv);
 % energy = GOH_energy(optC_GS,invariants);
-e_temp = energy - energy(1);
+e_temp = energy;% - energy(1);
 % close all
 figure 
 hold on
