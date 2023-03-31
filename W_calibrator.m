@@ -25,5 +25,5 @@ function sigma = objF(c,lambda)
 g       = calc_g(c(5:end));     % direction(s)
 inv     = calc_l2i(g, lambda);  % invariants
 dWI     = calc_der(c, inv);     % derivative of energy wrt invariants
-sigma = calc_sig(g, dWI, lambda);
+sigma   = calc_sig(g, dWI, lambda);
 end
