@@ -7,20 +7,21 @@ nDig    = 6; % number of digits used to round the calculated sigma
 % dWI     = calc_der(c, inv);     % derivative of energy wrt invariants
 
 % pre-allocations
-sigma   = zeros(size(lambda,1),3);
+sigma   = zeros(size(lambda,1),2);
 
 % Cauchy stress calculation
 for i = 1:size(lambda,1)
     % Calculate S'
-    S_PK2 = 2*(dWI(i,1)*eye(3));
+    S_PK2 = (dWI(i,1).*eye(3));
     for j = 2:size(dWI,2)
-        S_PK2   = S_PK2 + 2 * dWI(i,j) * (g(j-1,:)'*g(j-1,:));
+        S_PK2   = S_PK2 + dWI(i,j) .* (g(j-1,:)' * g(j-1,:));
     end
-    % Calculate pressure, using BC: sigma_33 = 0
-    sigma(i,3)      = lambda(i,3)^2 * S_PK2(3,3);
+    S_PK2 = 2 * S_PK2;
+    % Calculate pressure using BC: sigma_33 = 0
+    p     = lambda(i,3)^2 * S_PK2(3,3);
     % Calculate sigma_11 & sigma_22
-    sigma(i,1)  = round( lambda(i,1)^2 * S_PK2(1,1) - sigma(i,3) , nDig);
-    sigma(i,2)  = round( lambda(i,2)^2 * S_PK2(2,2) - sigma(i,3) , nDig);
+    sigma(i,1)  = lambda(i,1)^2 * S_PK2(1,1) - p;
+    sigma(i,2)  = lambda(i,2)^2 * S_PK2(2,2) - p;
 end
-sigma(:,3) = [];
+sigma = round(sigma,nDig);
 end
