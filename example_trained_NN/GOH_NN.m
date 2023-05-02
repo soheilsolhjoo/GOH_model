@@ -15,6 +15,7 @@ GOH_W = model(parameters,I0);
 % w.r.t. I1, and so on.
 
 % ========================================================================
+
 % The variables I0 and GOH_W are build based on the available data in the
 % MARC's manual for its subroutine "uelastomer_aniso". If another
 % subroutine can directly handle cauchy stresses, the network can be
