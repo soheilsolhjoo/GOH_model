@@ -9,7 +9,7 @@ global sb_11 sb_22 sx_11 sx_22 sy_11 sy_22
 global lam_sb lam_sx lam_sy
 global ss_11 ss_22
 
-data_dir    = 'dataset';
+data_dir    = '..\dataset';
 csvfiles    = dir(fullfile(data_dir, '*.csv'));
 s_b     = importfile(fullfile(data_dir, csvfiles(1).name)); % Equibiaxial
 s_x     = importfile(fullfile(data_dir, csvfiles(2).name)); % Off-biaxial X
