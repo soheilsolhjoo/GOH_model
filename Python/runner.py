@@ -22,15 +22,24 @@
 # Import  packages
 import os
 import pandas as pd
-import numpy as np
+# import numpy as np
 import matplotlib.pyplot as plt
+import autograd.numpy as np
+from autograd import jacobian
+import scipy
+from scipy.optimize import Bounds
+
 
 def MPa2KPa(data):
+    """ convert MPa data to KPa """
     data['Sigma11(MPa)'] *= 1000
     data['Sigma22(MPa)'] *= 1000
+    data = data.rename(columns={'Sigma11(MPa)': 'Sigma11(KPa)', 'Sigma22(MPa)': 'Sigma22(KPa)'})
     return data
 
 def move2origin(data):
+    """ move the origin to stretch = 1
+    """
     data.drop(index=data.index[0], axis=0, inplace=True)
     data['Lambda11(-)'] -= data['Lambda11(-)'][1] - 1
     data['Lambda22(-)'] -= data['Lambda22(-)'][1] - 1
@@ -38,57 +47,146 @@ def move2origin(data):
     data['Sigma22(MPa)'] -= data['Sigma22(MPa)'][1]
     return data
 
-def F_I1(data):
+def C_W_exp(data):
+    """ calculate the deformation energy
+    """
+    W11 = data['Lambda11(-)'] * data['Sigma11(KPa)']
+    W22 = data['Lambda22(-)'] * data['Sigma22(KPa)']
+    W = W11 + W22
+    data['Energy_exp'] = W.cumsum()
+    return data
+
+def C_L33(data):
+    """ calculate lambda33 = 1 / (lambda11 * lambda22)
+    """
     data['Lambda33(-)'] = 1 / (data['Lambda11(-)'] * data['Lambda22(-)'])
+    return data
+
+def C_I1(data):
+    """ calculate first invariant of the right cauchy-green tensor:
+    I1 = lam11 ^ 2 + lam22 ^ 2 + lam33 ^ 2
+    """
     data['I1'] =  np.power(data['Lambda11(-)'], 2) \
                 + np.power(data['Lambda22(-)'], 2) \
                 + np.power(data['Lambda33(-)'], 2)
     return data
 
-def GOH_energy(c,I):
-    """Calculates GOH energy, with:
-    c : [C1, k1, k2, kappa]
-    I : [I1, I4_1, I4_2, ...]
+def C_I4(data,g):
+    """ calculate the pseudo-invariants I4_1 and I4_2
+    I4 = g^2 * C
     """
-    C1, k1, k2, kappa = c
-    W_iso = C1 * (I[0] - 3)
-    E = kappa * (I[0] - 3) + (1 - 3*kappa) * (I[1:] - 1)
+    g = g[:,0:2] ** 2
+    C = np.power(np.array([data['Lambda11(-)'],data['Lambda22(-)']]),2)
+    I4s = (g @ C).T
+    data['I41'] = I4s[:,0]
+    data['I42'] = I4s[:,1]
+    return data
+
+def GOH_energy(const,I):
+    """Calculates GOH energy, with:
+    c : [mu, k1, k2, kappa]
+    I : [I1, I4_1, I4_2]
+    """
+    mu, k1, k2, kappa = const
+    W_iso = mu * (I[:,0] - 3)
+    E = kappa * (I[:,0].reshape(-1, 1) - 3) + (1 - 3*kappa) * (I[:,1:] - 1)
     E = (abs(E) + E) / 2
-    W_aniso = k1 / (2*k2) * sum(np.exp(k2 * np.power(E,2)) -1)
+    W_aniso = k1 / (2 * k2) * np.sum(np.exp((k2 * E**2) - 1), axis=1)
     return W_iso + W_aniso
+
+def WI_stress(data,const,del_I):
+    """ calculate stress using the energy method based on invariants of tensor C
+    """
+    # collect lambdas and square them
+    lam1_2 = data['Lambda11(-)'] ** 2
+    lam2_2 = data['Lambda22(-)'] ** 2
+    lam3_2 = data['Lambda33(-)'] ** 2
+    # calculate derivative of W wrt I
+    dWI_dic = {0:'dWI_1', 1:'dWI_41', 2:'dWI_42'}
+    inv_list = ['I1','I41','I42']
+    invs = data[inv_list]
+    dWI = pd.DataFrame()
+    for i in range(3):
+        Is = [invs.copy() for _ in range(2)]
+        Is[0][inv_list[i]] += del_I
+        Is[1][inv_list[i]] -= del_I
+        dWI[dWI_dic[i]] = (GOH_energy(const,Is[0].values) - GOH_energy(const,Is[1].values)) / (2*del_I)
+    # loop over data points
+    sigma = np.empty((data.shape[0],2))
+    for i in range(data.shape[0]):
+        # calculate S
+        S1 = dWI[dWI_dic[0]][i] * np.eye(3)
+        S2 = dWI[dWI_dic[1]][i]
+        S3 = dWI[dWI_dic[2]][i]
+        S_PK2 = 2 * (S1 + S2 + S3)
+        # find pressure : NOT DONE separately
+        # calculate Cauchy stresses
+        sigma[i,:] = [lam1_2[i+1] * S_PK2[0,0] , lam2_2[i+1] * S_PK2[1,1]] - (lam3_2[i+1] * S_PK2[2,2])
+    
+    return sigma
     
 
-def main():
+def main(data_file):
+    ################################
+    # Pre-assigned data: to be modified by user
+    ################################
+    del_I   = 1e-6; # delta_I is used for calculating derivative of W (energy) wrt I (invariants), dWI
+    alpha = [0,90]  # fiber directions
+    # constants of the Gasser-Ogden-Holzapfel (GOH) model
+    const = [0, 0.0178571102269196, 10.5298382063112, 0.156341552391173] # [mu, k1, k2, kappa]
 
+    ################################
+    # The main code
+    ################################
     # LOAD DATA
-    data_dir = "C:\\Users\\P268670\\OneDrive - University of Groningen\\Documents\\Work\\git\\GOH_model\\"
-    data_dir = data_dir + "dataset\\"
-    data_offX = pd.read_csv(data_dir+'Subject111_Sample1_YoungDorsal_OffbiaxialX.csv')
-    data_offY = pd.read_csv(data_dir+'Subject111_Sample1_YoungDorsal_OffbiaxialY.csv')
-    data_equi = pd.read_csv(data_dir+'Subject111_Sample1_YoungDorsal_Equibiaxial.csv')
-    
-    # RESCALE DATA
-    data_offX = MPa2KPa(data_offX)
-    data_offY = MPa2KPa(data_offY)
-    data_equi = MPa2KPa(data_equi)
-
+    data_ = pd.read_csv(data_file)
     # REPOSITION THE ORIGIN
     # Take this step with care, and ensure it's necessary for a physically meaningful behavior
-    data_offX = move2origin(data_offX)
-    data_offY = move2origin(data_offY)
-    data_equi = move2origin(data_equi)
+    data_ = move2origin(data_)
+    # RESCALE DATA
+    data_ = MPa2KPa(data_)
+    # Calculate elastic deformation energy
+    data_ = C_W_exp(data_)
+    # CONSTRUCT F : not needed. Instead only calculate lambda(33), L3 = 1/(L1*L2)
+    data_ = C_L33(data_)
+    # Calculate I1: I1 = L1^2 + L2^2 + L3^2
+    data_ = C_I1(data_)
+    
+    # ASSIGN directions at alpha = 0 and 90 degrees
+    alpha = np.array(alpha) * np.pi/180
+    g = np.array([[np.cos(alpha[0]), np.sin(alpha[0]), 0],\
+                  [np.cos(alpha[1]), np.sin(alpha[1]), 0]]).round(decimals=3)
+    # Calculate psuedo-invariants for the directions g
+    # I4i = g.^2 * C that is [2 x 2]*[2 x n_data]
+    data_ = C_I4(data_,g)
 
-    # CONSTRUCT F and calculate I1
-    # For our data, L1 and L2 are known, and L3 = 1/(L1*L2)
-    # I1 = L1^2 + L2^2 + L3^2
-    data_offX = F_I1(data_offX)
-    data_offY = F_I1(data_offY)
-    data_equi = F_I1(data_equi)
+    # Estimate stresses
+    # sigma = WI_stress(data_,const,del_I)
 
-    print(data_offX)
-    # print(data_offY)
-    # print(data_equi)
+    def obj_fun(const):
+        sigma = WI_stress(data_,const,del_I)
+        err = (sigma[:,0]-data_['Sigma11(KPa)']) ** 2 \
+             +(sigma[:,1]-data_['Sigma22(KPa)']) ** 2
+        err = sum(np.sqrt(err)) / data_.shape[0]
+        return 
+
+    jac_fun = jacobian(obj_fun)
+    const_0 = [1,1,1,1/6]
+    bounds = Bounds([0,0,0,0,],[10,10,100,1/3])
+    opt_GOH = scipy.optimize.minimize(obj_fun, const_0, bounds = bounds)
+
+    print(opt_GOH)
+
+    # print(g)
     
 
 if __name__ == "__main__":
-    main()
+
+
+
+    # data_dir = "C:\\Users\\P268670\\OneDrive - University of Groningen\\Documents\\Work\\git\\GOH_model\\"
+    data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model"
+    data_dir = data_dir + "\\dataset\\"
+    data_file = data_dir+'Subject111_Sample1_YoungDorsal_Equibiaxial.csv'
+    
+    main(data_file)
