@@ -26,7 +26,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import autograd.numpy as np
 from autograd import jacobian
-import scipy
+# import scipy
+from scipy.optimize import minimize
 from scipy.optimize import Bounds
 
 
@@ -165,19 +166,18 @@ def main(data_file):
 
     def obj_fun(const):
         sigma = WI_stress(data_,const,del_I)
-        err = (sigma[:,0]-data_['Sigma11(KPa)']) ** 2 \
-             +(sigma[:,1]-data_['Sigma22(KPa)']) ** 2
-        err = sum(np.sqrt(err)) / data_.shape[0]
-        return 
+        obj = np.sqrt(    (sigma[:,0]-data_['Sigma11(KPa)']) ** 2 \
+                        + (sigma[:,1]-data_['Sigma22(KPa)']) ** 2)
+        obj = sum(obj) / data_.shape[0]
+        return obj
 
     jac_fun = jacobian(obj_fun)
     const_0 = [1,1,1,1/6]
-    bounds = Bounds([0,0,0,0,],[10,10,100,1/3])
-    opt_GOH = scipy.optimize.minimize(obj_fun, const_0, bounds = bounds)
-
+    bounds = Bounds([0,0,0,0],[1,10,100,1/3])
+    opt_GOH = minimize(obj_fun, const_0, jac = jac_fun , bounds = bounds, method =  'CG')
+    # opt_GOH = minimize(obj_fun, const_0, bounds = bounds, method =  'CG')
+    
     print(opt_GOH)
-
-    # print(g)
     
 
 if __name__ == "__main__":
