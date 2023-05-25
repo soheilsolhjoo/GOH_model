@@ -174,7 +174,7 @@ def main(data_file):
     jac_fun = jacobian(obj_fun)
     const_0 = [1,1,1,1/6]
     bounds = Bounds([0,0,0,0],[1,10,100,1/3])
-    opt_GOH = minimize(obj_fun, const_0, jac = jac_fun , bounds = bounds, method =  'CG')
+    opt_GOH = minimize(obj_fun, const_0)#, jac = jac_fun , bounds = bounds, method =  'CG')
     # opt_GOH = minimize(obj_fun, const_0, bounds = bounds, method =  'CG')
     
     print(opt_GOH)
