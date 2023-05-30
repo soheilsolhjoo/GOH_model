@@ -33,8 +33,8 @@ from scipy.optimize import Bounds
 
 def MPa2KPa(data):
     """ convert MPa data to KPa """
-    data['Sigma11(MPa)'] *= 1000
-    data['Sigma22(MPa)'] *= 1000
+    data['Sigma11(MPa)'] *= 1
+    data['Sigma22(MPa)'] *= 1
     data = data.rename(columns={'Sigma11(MPa)': 'Sigma11(KPa)', 'Sigma22(MPa)': 'Sigma22(KPa)'})
     return data
 
@@ -42,10 +42,14 @@ def move2origin(data):
     """ move the origin to stretch = 1
     """
     data.drop(index=data.index[0], axis=0, inplace=True)
-    data['Lambda11(-)'] -= data['Lambda11(-)'][1] - 1
-    data['Lambda22(-)'] -= data['Lambda22(-)'][1] - 1
-    data['Sigma11(MPa)'] -= data['Sigma11(MPa)'][1]
-    data['Sigma22(MPa)'] -= data['Sigma22(MPa)'][1]
+    # data['Lambda11(-)'] -= data['Lambda11(-)'][1] - 1
+    # data['Lambda22(-)'] -= data['Lambda22(-)'][1] - 1
+    # data['Sigma11(MPa)'] -= data['Sigma11(MPa)'][1]
+    # data['Sigma22(MPa)'] -= data['Sigma22(MPa)'][1]
+    data['Lambda11(-)'] -= min(data['Lambda11(-)']) - 1
+    data['Lambda22(-)'] -= min(data['Lambda22(-)']) - 1
+    data['Sigma11(MPa)'] -= min(data['Sigma11(MPa)'])
+    data['Sigma22(MPa)'] -= min(data['Sigma22(MPa)'])
     return data
 
 def C_W_exp(data):
@@ -95,7 +99,7 @@ def GOH_energy(const,I):
     W_aniso = k1 / (2 * k2) * np.sum(np.exp((k2 * E**2) - 1), axis=1)
     return W_iso + W_aniso
 
-def WI_stress(data,const,del_I):
+def WI_stress(data,g,const,del_I):
     """ calculate stress using the energy method based on invariants of tensor C
     """
     # collect lambdas and square them
@@ -117,13 +121,19 @@ def WI_stress(data,const,del_I):
     for i in range(data.shape[0]):
         # calculate S
         S1 = dWI[dWI_dic[0]][i] * np.eye(3)
-        S2 = dWI[dWI_dic[1]][i]
-        S3 = dWI[dWI_dic[2]][i]
+        S2 = dWI[dWI_dic[1]][i] * np.outer(g[0,:],g[0,:])
+        S3 = dWI[dWI_dic[2]][i] * np.outer(g[1,:],g[1,:])
         S_PK2 = 2 * (S1 + S2 + S3)
-        # find pressure : NOT DONE separately
+
+        # find pressure
         # calculate Cauchy stresses
+        # p = lam3_2[i+1] * S_PK2[2,2]
+        # sigma[i,0] = lam1_2[i+1] * S_PK2[0,0] - p
+        # sigma[i,1] = lam2_2[i+1] * S_PK2[1,1] - p
+        # OR: do them in one line
         sigma[i,:] = [lam1_2[i+1] * S_PK2[0,0] , lam2_2[i+1] * S_PK2[1,1]] - (lam3_2[i+1] * S_PK2[2,2])
     
+    # sigma = sigma.round(decimals=3)
     return sigma
     
 
@@ -134,7 +144,7 @@ def main(data_file):
     del_I   = 1e-6; # delta_I is used for calculating derivative of W (energy) wrt I (invariants), dWI
     alpha = [0,90]  # fiber directions
     # constants of the Gasser-Ogden-Holzapfel (GOH) model
-    const = [0, 0.0178571102269196, 10.5298382063112, 0.156341552391173] # [mu, k1, k2, kappa]
+    const = [0.000283374511362277,0.0720598261930225,14.9986280551827,0.243760764933087] # [mu, k1, k2, kappa]
 
     ################################
     # The main code
@@ -160,12 +170,13 @@ def main(data_file):
     # Calculate psuedo-invariants for the directions g
     # I4i = g.^2 * C that is [2 x 2]*[2 x n_data]
     data_ = C_I4(data_,g)
+    
 
     # Estimate stresses
-    # sigma = WI_stress(data_,const,del_I)
+    # sigma = WI_stress(data_,g,const,del_I)
 
     def obj_fun(const):
-        sigma = WI_stress(data_,const,del_I)
+        sigma = WI_stress(data_,g,const,del_I)
         obj = np.sqrt(    (sigma[:,0]-data_['Sigma11(KPa)']) ** 2 \
                         + (sigma[:,1]-data_['Sigma22(KPa)']) ** 2)
         obj = sum(obj) / data_.shape[0]
@@ -174,16 +185,13 @@ def main(data_file):
     jac_fun = jacobian(obj_fun)
     const_0 = [1,1,1,1/6]
     bounds = Bounds([0,0,0,0],[1,10,100,1/3])
-    opt_GOH = minimize(obj_fun, const_0)#, jac = jac_fun , bounds = bounds, method =  'CG')
-    # opt_GOH = minimize(obj_fun, const_0, bounds = bounds, method =  'CG')
-    
+    # opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds, method = 'bfgs')
+    # opt_GOH = minimize(obj_fun, const_0, bounds = bounds, method = 'bfgs')
+    opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds)
     print(opt_GOH)
     
 
 if __name__ == "__main__":
-
-
-
     # data_dir = "C:\\Users\\P268670\\OneDrive - University of Groningen\\Documents\\Work\\git\\GOH_model\\"
     data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model"
     data_dir = data_dir + "\\dataset\\"
