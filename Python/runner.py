@@ -144,7 +144,7 @@ def main(data_file):
     del_I   = 1e-6; # delta_I is used for calculating derivative of W (energy) wrt I (invariants), dWI
     alpha = [0,90]  # fiber directions
     # constants of the Gasser-Ogden-Holzapfel (GOH) model
-    const = [0.000283374511362277,0.0720598261930225,14.9986280551827,0.243760764933087] # [mu, k1, k2, kappa]
+    const = [0.1,1,1,1/6] # [mu, k1, k2, kappa]
 
     ################################
     # The main code
@@ -186,8 +186,8 @@ def main(data_file):
     const_0 = [1,1,1,1/6]
     bounds = Bounds([0,0,0,0],[1,10,100,1/3])
     # opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds, method = 'bfgs')
-    # opt_GOH = minimize(obj_fun, const_0, bounds = bounds, method = 'bfgs')
-    opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds)
+    opt_GOH = minimize(obj_fun, const_0, bounds = bounds)#, method = 'bfgs')
+    # opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds)
     print(opt_GOH)
     
 
