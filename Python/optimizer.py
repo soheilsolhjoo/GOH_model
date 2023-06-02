@@ -11,11 +11,17 @@ from scipy.optimize import minimize
 from scipy.optimize import Bounds
 
 
-def main(data_file):
-    # g = f.g
-    # del_I = f.del_I
+def main(data_dir):
+    # data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model\dataset\\"
+    data_eq = data_dir+'Subject111_Sample1_YoungDorsal_Equibiaxial.csv'
+    data_x = data_dir+'Subject111_Sample1_YoungDorsal_OffbiaxialX.csv'
+    data_y = data_dir+'Subject111_Sample1_YoungDorsal_OffbiaxialY.csv'
 
-    data_, g = f.data_preparation(data_file)
+    data_eq, g = f.data_preparation(data_eq)
+    # data_x = f.data_preparation(data_eq)[0]
+    # data_y = f.data_preparation(data_eq)[0]
+    
+    data_ = data_eq
 
     def obj_fun(const):
         sigma = f.WI_stress(data_,g,const,del_I)
@@ -34,9 +40,5 @@ def main(data_file):
     
 
 if __name__ == "__main__":
-    # data_dir = "C:\\Users\\P268670\\OneDrive - University of Groningen\\Documents\\Work\\git\\GOH_model\\"
-    data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model"
-    data_dir = data_dir + "\\dataset\\"
-    data_file = data_dir+'Subject111_Sample1_YoungDorsal_Equibiaxial.csv'
-    
-    main(data_file)
+    data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model\dataset\\"
+    main(data_dir)
