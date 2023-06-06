@@ -7,6 +7,9 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Activation
 from tensorflow.keras.optimizers import Adam
 
+from sklearn.preprocessing import MinMaxScaler
+import joblib
+
 # import numpy as np
 # import matplotlib.pyplot as plt
 # import autograd.numpy as np
@@ -36,6 +39,11 @@ def main(data_dir):
     y_train = pd.concat([data_x[W_col], data_y[W_col]], ignore_index=True)
     X_eval  = data_eq[I_col]
     y_eval  = data_eq[W_col]
+
+    scaler = MinMaxScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_eval = scaler.transform(X_eval)
+    joblib.dump(scaler, 'model_scaler.save')
     
     # Creating a NN model
     model = Sequential()
