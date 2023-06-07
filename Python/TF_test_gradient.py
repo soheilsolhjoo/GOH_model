@@ -37,6 +37,7 @@ def custom_loss(y_true, y_pred):
     grad1 = tf.gradients(out[:, 0], inputdata)[0][:, 1]
     grad1 = tf.cast(grad1,tf.float32)
     mae_loss = tf.reduce_mean(tf.abs(grad1 - out[:, 1]))  # Mean absolute error with derivative
+
     return mse_loss + mae_loss  # Combine the two losses
 
 # Define your network architecture
