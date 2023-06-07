@@ -36,7 +36,9 @@ def main(data_dir):
     # opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds, method = 'bfgs')
     opt_GOH = minimize(obj_fun, const_0, bounds = bounds)#, method = 'bfgs')
     # opt_GOH = minimize(obj_fun, const_0, jac = jac_fun, bounds = bounds)
-    print(opt_GOH)
+    # print(opt_GOH)
+    with open("optimized_consts.txt", "a") as file:
+        file.write(f"{opt_GOH}")
     
 
 if __name__ == "__main__":
