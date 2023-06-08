@@ -24,7 +24,7 @@ def main(data_dir):
     data_ = data_eq
 
     def obj_fun(const):
-        sigma = f.WI_stress(data_,g,const,del_I)
+        sigma = f.WI_stress_GOH(data_,g,const,del_I)
         obj = np.sqrt(    (sigma[:,0]-data_['Sigma11(KPa)']) ** 2 \
                         + (sigma[:,1]-data_['Sigma22(KPa)']) ** 2)
         obj = sum(obj) / data_.shape[0]

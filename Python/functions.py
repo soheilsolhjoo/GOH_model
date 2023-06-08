@@ -100,7 +100,7 @@ def GOH_energy(const,I):
     W_aniso = k1 / (2 * k2) * np.sum(np.exp((k2 * E**2) - 1), axis=1)
     return W_iso + W_aniso
 
-def WI_stress(data,g,const,del_I):
+def WI_stress_GOH(data,g,const,del_I):
     """ calculate stress using the energy method based on invariants of tensor C
     """
     # collect lambdas and square them
@@ -137,6 +137,40 @@ def WI_stress(data,g,const,del_I):
     # sigma = sigma.round(decimals=3)
     return sigma
     
+
+def WI_stress_NN(lambdas,invs,g,dWI):
+    """ calculate stress using the energy method based on invariants of tensor C
+    """
+    # collect lambdas and square them
+    lambdas_2 = lambdas ** 2
+    # lam2_2 = lambdas[:,1] ** 2
+    # lam3_2 = lambdas[:,2] ** 2
+    # # calculate derivative of W wrt I
+    # dWI_dic = {0:'dWI_1', 1:'dWI_41', 2:'dWI_42'}
+    # inv_list = ['I1','I41','I42']
+    # invs = data[inv_list]
+    # dWI = pd.DataFrame()
+    # for i in range(3):
+    #     Is = [invs.copy() for _ in range(2)]
+    #     Is[0][inv_list[i]] += del_I
+    #     Is[1][inv_list[i]] -= del_I
+    #     dWI[dWI_dic[i]] = (GOH_energy(const,Is[0].values) - GOH_energy(const,Is[1].values)) / (2*del_I)
+    # # loop over data points
+    sigma = np.empty((invs.shape[0],2))
+    for i in range(invs.shape[0]):
+        # calculate S
+        S1 = dWI[i,0] * np.eye(3)
+        S2 = dWI[i,1] * np.outer(g[0,:],g[0,:])
+        S3 = dWI[i,2] * np.outer(g[1,:],g[1,:])
+        S_PK2 = 2 * (S1 + S2 + S3)
+        # print(lambdas_2)
+        # exit()
+        # calculate Cauchy stresses
+        sigma[i,:] = [lambdas_2[i,0] * S_PK2[0,0] , lambdas_2[i,1] * S_PK2[1,1]] - (lambdas_2[i,2] * S_PK2[2,2])
+    
+    # sigma = sigma.round(decimals=3)
+    return sigma
+
 
 def data_preparation(data_file):
     global alpha
