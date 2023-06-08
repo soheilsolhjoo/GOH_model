@@ -9,6 +9,8 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Activation
 # from tensorflow.keras.optimizers import Adam
 
+from custom_loss import custom_loss # type: ignore
+
 from sklearn.preprocessing import MinMaxScaler
 import joblib
 
@@ -19,9 +21,6 @@ import joblib
 # # import scipy
 # from scipy.optimize import minimize
 # from scipy.optimize import Bounds
-
-def custom_loss(y_true, y_pred):
-    return tf.reduce_mean(tf.square(y_true - y_pred))  # Mean squared error
 
 def main(data_dir):
     # data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model\dataset\\"
@@ -48,18 +47,24 @@ def main(data_dir):
     X_train = scaler.fit_transform(X_train)
     X_eval = scaler.transform(X_eval)
     joblib.dump(scaler, 'model_scaler.save')
+
+    # Create TensorFlow variables for input data
+    input_train = tf.Variable(X_train)
+    input_eval = tf.Variable(X_eval)
     
     # Creating a NN model
     model = Sequential()
     model.add(Dense(3,activation='relu')) #inputs: I1, I41, I42
     model.add(Dense(8,activation='relu'))
-    model.add(Dense(1)) #outputs: W, dWI1, dWI41, dWI42
-    model.compile(optimizer='adam',loss=custom_loss)
+    model.add(Dense(4,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
+
+    # Compile the model with custom loss function
+    model.compile(optimizer='adam', loss=custom_loss(model, input_train, input_eval))
 
     # Training the model
     model.fit(x=X_train,y=y_train.values,
           validation_data=(X_eval,y_eval.values),
-          batch_size=32,epochs=128)
+          batch_size=128, epochs=512)
     
     # Plot the losses
     losses = pd.DataFrame(model.history.history)

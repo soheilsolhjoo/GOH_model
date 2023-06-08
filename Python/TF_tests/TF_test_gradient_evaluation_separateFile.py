@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from custom_loss import custom_loss
+from custom_loss_test import custom_loss
 
 # Generate random example data
 x_train = np.random.rand(100, 10)
