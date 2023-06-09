@@ -22,6 +22,7 @@
 # Import  packages
 from consts import *
 import os
+import sys
 import pandas as pd
 # import numpy as np
 import matplotlib.pyplot as plt
@@ -30,6 +31,8 @@ from autograd import jacobian
 # import scipy
 from scipy.optimize import minimize
 from scipy.optimize import Bounds
+import tensorflow as tf
+import keras.backend as K
 
 
 def MPa2KPa(data):
@@ -138,6 +141,51 @@ def WI_stress_GOH(data,g,const,del_I):
     return sigma
     
 
+
+def WI_stress_NN_train(lambdas,invs,g,dWI):
+    """ calculate stress using the energy method based on invariants of tensor C
+    """
+    # collect lambdas and square them
+    lambdas_2 = lambdas ** 2
+    # cast variables into tf.float32
+    lambdas_2 = tf.cast(lambdas_2, tf.float32)
+    g = tf.cast(g, tf.float32)
+    # pre-allocate memory for sigma
+    # sigma = np.empty((invs.shape[0],2))
+    # sigma = tf.Variable(tf.zeros((invs.shape[0], 2), dtype=tf.float32)) # Raise: ValueError: tf.function only supports singleton tf.Variables created on the first call. Make sure the tf.Variable is only created once or created outside tf.function.
+    sigma = tf.TensorArray(dtype=tf.float32, size=invs.shape[0], dynamic_size=False)
+    # loop over data points
+    for i in range(invs.shape[0]):
+        # calculate S
+        S1 = dWI[i,0] * tf.eye(3)
+        S2 = dWI[i,1] * tf.einsum('i,j->ij', g[0,:], g[0,:]) #np.outer(g[0,:],g[0,:])
+        S3 = dWI[i,2] * tf.einsum('i,j->ij', g[1,:], g[1,:]) #np.outer(g[1,:],g[1,:])
+        S_PK2 = 2 * (S1 + S2 + S3)
+        # print("*: ", dWI[i,0])
+        # # print(S_PK2.consumers())
+        # # tf.print(S_PK2.eval())
+        # # tf.print(S_PK2, output_stream=sys.stderr)
+        # exit()
+        # calculate Cauchy stresses
+        p = lambdas_2[i,2] * S_PK2[2,2]
+
+        # # to be used with tf.Variable, which doesn't work
+        # sigma[i, 0].assign(lambdas_2[i, 0] * S_PK2[0, 0] - p)
+        # sigma[i, 1].assign(lambdas_2[i, 1] * S_PK2[1, 1] - p)
+
+        sigma = sigma.write(i, [
+            lambdas_2[i, 0] * S_PK2[0, 0] - p,
+            lambdas_2[i, 1] * S_PK2[1, 1] - p
+        ])
+        # calculate Cauchy stresses
+        # sigma[i,0] = lambdas_2[i,0] * S_PK2[0,0] - p
+        # sigma[i,1] = lambdas_2[i,1] * S_PK2[1,1] - p
+        # sigma[i,:] = [lambdas_2[i,0] * S_PK2[0,0] , lambdas_2[i,1] * S_PK2[1,1]] - (lambdas_2[i,2] * S_PK2[2,2])
+    
+    # sigma = sigma.round(decimals=3)
+    return sigma.stack()
+
+
 def WI_stress_NN(lambdas,invs,g,dWI):
     """ calculate stress using the energy method based on invariants of tensor C
     """
@@ -163,8 +211,11 @@ def WI_stress_NN(lambdas,invs,g,dWI):
         S2 = dWI[i,1] * np.outer(g[0,:],g[0,:])
         S3 = dWI[i,2] * np.outer(g[1,:],g[1,:])
         S_PK2 = 2 * (S1 + S2 + S3)
-        # print(lambdas_2)
-        # exit()
+        # print("*: ", dWI[i,0])
+        # print(S_PK2.consumers())
+        # tf.print(S_PK2.eval())
+        # tf.print(S_PK2, output_stream=sys.stderr)
+        exit()
         # calculate Cauchy stresses
         sigma[i,:] = [lambdas_2[i,0] * S_PK2[0,0] , lambdas_2[i,1] * S_PK2[1,1]] - (lambdas_2[i,2] * S_PK2[2,2])
     
