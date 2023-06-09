@@ -66,10 +66,10 @@ def main(data_dir):
         g = np.savetxt(dataFile_g, g, delimiter=',')
     
     # define column names for later data collection
-    I_col = ["I1", "I41", "I42"]
-    W_col = ["Energy_exp"]
-    L_col = ['Lambda11(-)', 'Lambda22(-)', 'Lambda33(-)']
-    S_col = ['Sigma11(KPa)', 'Sigma22(KPa)']
+    # I_col = ["I1", "I41", "I42"]
+    # W_col = ["Energy_exp"]
+    # L_col = ['Lambda11(-)', 'Lambda22(-)', 'Lambda33(-)']
+    # S_col = ['Sigma11(KPa)', 'Sigma22(KPa)']
 
     if not os.path.exists(NN_file_path):
         # collect data
