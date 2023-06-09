@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Activation
+from tensorflow.keras.callbacks import EarlyStopping
 # from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 
-from custom_loss import custom_loss # type: ignore
+# from custom_loss import custom_loss # type: ignore
 
 from sklearn.preprocessing import MinMaxScaler
 import joblib
@@ -94,16 +95,23 @@ def main(data_dir):
         # Creating a NN model
         model = Sequential()
         model.add(Dense(3,activation='relu')) #inputs: I1, I41, I42
-        model.add(Dense(8,activation='relu'))
+        model.add(Dense(5,activation='relu'))
+        model.add(Dense(5,activation='relu'))
+        model.add(Dense(5,activation='relu'))
         model.add(Dense(4,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
 
         # Compile the model with custom loss function
-        model.compile(optimizer='adam', loss=custom_loss(model, input_train, input_eval, cauchy_train, cauchy_eval, lambda_train, lambda_eval, g))
+        model.compile(optimizer='adam', loss=f.custom_loss(model, input_train, input_eval, cauchy_train, cauchy_eval, lambda_train, lambda_eval, g),
+                      metrics=[f.custom_metric])
+
+        # Setup early stop
+        early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=5)
 
         # Training the model
         model.fit(x=X_train,y=y_train.values,
             validation_data=(X_eval,y_eval.values),
-            batch_size=8, epochs=512)
+            batch_size=8, epochs=512,
+            callbacks=[early_stop])
         
         # Plot the losses
         losses = pd.DataFrame(model.history.history)
