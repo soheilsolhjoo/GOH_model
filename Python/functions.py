@@ -310,6 +310,21 @@ def custom_metric(y_true, y_pred):
 
     return metric_value
 
+
+def const_read(const_file):
+    # Read the text file
+    with open(const_file, 'r') as file:
+        lines = file.readlines()
+    # Extract the values of x from the appropriate line
+    for line in lines:
+        if line.startswith('        x:'):
+            x_values_str = line.split(':')[1].strip()
+            x_values_str = x_values_str.replace('[', '').replace(']', '')  # Remove square brackets
+            X = [float(value) for value in x_values_str.split()]
+            return X
+    return None
+
+
 if __name__ == "__main__":
     # data_dir = "C:\\Users\\P268670\\OneDrive - University of Groningen\\Documents\\Work\\git\\GOH_model\\"
     data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model"
