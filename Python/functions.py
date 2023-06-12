@@ -38,8 +38,8 @@ from consts import *
 
 def MPa2KPa(data):
     """ convert MPa data to KPa """
-    data['Sigma11(MPa)'] *= 1
-    data['Sigma22(MPa)'] *= 1
+    data['Sigma11(MPa)'] *= 1000
+    data['Sigma22(MPa)'] *= 1000
     data = data.rename(columns={'Sigma11(MPa)': 'Sigma11(KPa)', 'Sigma22(MPa)': 'Sigma22(KPa)'})
     return data
 

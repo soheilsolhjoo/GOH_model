@@ -71,6 +71,8 @@ def main(data_dir):
     # L_col = ['Lambda11(-)', 'Lambda22(-)', 'Lambda33(-)']
     # S_col = ['Sigma11(KPa)', 'Sigma22(KPa)']
 
+    exit()
+
     if not os.path.exists(NN_file_path):
         # collect data
         X_train = pd.concat([data_x[I_col], data_y[I_col]])
