@@ -105,7 +105,7 @@ def main(data_dir):
                       metrics=[f.custom_metric])
 
         # Setup early stop
-        early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=5)
+        early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10)
 
         # Training the model
         model.fit(x=X_train,y=y_train.values,

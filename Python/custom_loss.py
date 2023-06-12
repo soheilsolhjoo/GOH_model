@@ -39,7 +39,7 @@ def custom_loss(model, input_train, input_eval, cauchy_train, cauchy_eval, lambd
         L2 = L_stress
 
         a1 = 0.1
-        a2 = 1
+        a2 = 10
 
         total_loss = a1*L1 + a2*L2
         return total_loss  # Combine the two losses
