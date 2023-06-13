@@ -5,11 +5,15 @@ data(1,:) = [];
 for i = 1 : size(data,2)
     corr = mod(i,2);
     MPa2KPa = (1-corr) * 1000 + corr;
+
+    % Choose either of the following lines
+    % L1: move the origin to the first available data point
+    data(:,i) = (data(:,i) - min(data(:,i)) + corr) * MPa2KPa;
+    % L2: not move the origin
+    % data(:,i) = data(:,i) * MPa2KPa;
+
     if corr
         data(:,i:i+1) = sortrows(data(:,i:i+1),1);
     end
-    % data(:,i) = (data(:,i) - min(data(:,i)) + corr) * MPa2KPa;
-    data(:,i) = (data(:,i) - data(1,i) + corr) * MPa2KPa;
-
 end
 end
