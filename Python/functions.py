@@ -25,16 +25,17 @@ import re
 import os
 import sys
 import pandas as pd
-# import numpy as np
+import numpy as np
 import matplotlib.pyplot as plt
-import autograd.numpy as np
+# import autograd.numpy as np
 from autograd import jacobian
 # import scipy
 from sklearn.preprocessing import MinMaxScaler
-from scipy.optimize import minimize
-from scipy.optimize import Bounds
+from scipy.integrate import cumtrapz
+from scipy.optimize import minimize, Bounds
 import tensorflow as tf
 import tensorflow.keras.backend as K
+import keras
 from consts import *
 
 
@@ -62,10 +63,20 @@ def move2origin(data):
 def C_W_exp(data):
     """ calculate the deformation energy
     """
-    W11 = data['Lambda11(-)'] * data['Sigma11(KPa)']
-    W22 = data['Lambda22(-)'] * data['Sigma22(KPa)']
+    # W11 = data['Lambda11(-)'] * data['Sigma11(KPa)']
+    # W22 = data['Lambda22(-)'] * data['Sigma22(KPa)']
+    # W = W11 + W22
+    # data['Energy_exp'] = W.cumsum()
+
+    eps_11 = np.log(data['Lambda11(-)'])
+    eps_22 = np.log(data['Lambda22(-)'])
+    # W11 = np.trapz(data['Sigma11(KPa)'], x=eps_11)
+    # W22 = np.trapz(data['Sigma22(KPa)'], x=eps_22)
+    W11 = cumtrapz(data['Sigma11(KPa)'], x=eps_11, initial=0)
+    W22 = cumtrapz(data['Sigma22(KPa)'], x=eps_22, initial=0)
     W = W11 + W22
-    data['Energy_exp'] = W.cumsum()
+    data['Energy_exp'] = W
+
     return data
 
 def C_L33(data):
@@ -145,7 +156,7 @@ def WI_stress_GOH(data,g,consts,del_I):
     # sigma = sigma.round(decimals=3)
     return sigma
     
-def read_data(current_dir):
+def read_data(current_dir,data_dir):
     folder_path = 'data'
     os.makedirs(folder_path, exist_ok=True)
     dataFile_eq  = os.path.join(current_dir, "data\\data_eq.csv")
@@ -299,30 +310,14 @@ def data_preparation(data_file):
 
     return data_, g
     
-def custom_loss(model, inv_train, cauchy_train, lambda_train, W_train, g):
+def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, g):
     def loss_function(y_true, y_pred):
-        ## Energy Loss
-        # mse_W = tf.reduce_mean(tf.square(y_true[:, 0] - y_pred[:, 0]))  # Mean squared error for energy
-
-        ## data prep for derivative and cauchy stress losses
-        # if K.learning_phase() == 0:  # Training phase
+    # def loss_function():
         X = inv_train
-        S = cauchy_train
-        W = W_train
-        lambdas = lambda_train
-        # else:    # Evaluation phase
-        #     X = input_eval
-        #     Y = cauchy_eval
-        #     lambdas = lambda_eval
-
         out = model(X)
         
         # ## Energy Loss
-        W = tf.cast(W, dtype=out.dtype)
-        print(W)
-        print(y_true)
-        print(tf.reduce_all(tf.equal(W, y_true)))
-        exit()
+        W = tf.cast(W_train, dtype=out.dtype)
         mse_W = tf.reduce_mean(tf.square(W[:, 0] - out[:, 0]))  # Mean squared error for energy
 
         # ## Derivative Losses
@@ -332,16 +327,17 @@ def custom_loss(model, inv_train, cauchy_train, lambda_train, W_train, g):
 
         L1 = mse_W #+ mse_dWI
 
-        ## Stress loss
-        # stress  = WI_stress_NN_train(lambdas,X,g,dWI)
-        # L_stress = tf.reduce_mean(tf.square(S - stress))  # Mean squared error for stress
-        # S = tf.cast(S, dtype=out.dtype)
+        # # # ## Stress loss
+        # # lambdas = lambda_train
+        # # # stress  = WI_stress_NN_train(lambdas,X,g,dWI)
+        # # # L_stress = tf.reduce_mean(tf.square(Y - stress))  # Mean squared error for stress
+        # S = tf.cast(cauchy_train, dtype=out.dtype)
         # L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - out, axis=1), axis=0))
 
         # L2 = L_stress
 
-        a1 = 0.1
-        a2 = 1
+        # a1 = 0.1
+        # a2 = 1
 
         total_loss = L1
         
@@ -381,8 +377,8 @@ def plot(data_,g,fig_name,title,method,consts=[],model=[],scaler=[],stress_fig=T
         invs    = scaler.transform(invs)
 
         W = model(invs)
-
         # stress  = model(invs)
+        
         # dWI     = model(invs)[:, 1:]
         # stress  = WI_stress_NN_train(lambdas,invs,g,dWI)
     

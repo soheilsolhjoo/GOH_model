@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Activation
+from tensorflow.keras.layers import Dense, Activation, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import load_model
 
@@ -20,38 +20,52 @@ def main(data_dir):
     current_dir  = os.path.dirname(os.path.abspath(__file__))
     NN_file_path = os.path.join(current_dir, "GOH_NN.h5")
     
-    data_eq, data_x, data_y, g = f.read_data(current_dir)
+    data_eq, data_x, data_y, g = f.read_data(current_dir,data_dir)
     
     if not os.path.exists(NN_file_path):
-        # collect data
+        ## collect data
         X_train         = pd.concat([data_eq[I_col], data_x[I_col], data_y[I_col]]).values
         y_train         = pd.concat([data_eq[W_col], data_x[W_col], data_y[W_col]]).values
         lambda_train    = pd.concat([data_eq[L_col], data_x[L_col], data_y[L_col]]).values
         cauchy_train    = pd.concat([data_eq[S_col], data_x[S_col], data_y[S_col]]).values
 
+        # X_train         = pd.concat([data_eq[I_col]]).values
+        # y_train         = pd.concat([data_eq[W_col]]).values
+        # lambda_train    = pd.concat([data_eq[L_col]]).values
+        # cauchy_train    = pd.concat([data_eq[S_col]]).values
+
+        # # Shuffle data
+        # np.random.shuffle(X_train)
+        # np.random.shuffle(y_train)
+        # np.random.shuffle(lambda_train)
+        # np.random.shuffle(cauchy_train)
+
+
         # # Scale the input values
         scaler = MinMaxScaler()
         X_train = scaler.fit_transform(X_train)
-        # X_eval = scaler.transform(X_eval)
+        # # X_eval = scaler.transform(X_eval)
         joblib.dump(scaler, 'GOH_NN.scaler')
 
         # Create TensorFlow variables for input data
-        inv_train = tf.Variable(X_train)
+        # inv_train = tf.Variable(X_train)
         # input_eval = tf.Variable(X_eval)
 
         # Creating a NN model
         model = Sequential()
-        act_fun = 'tanh'
+        act_fun = 'relu'
         model.add(Dense(3,activation=act_fun)) #inputs: I1, I41, I42
-        n_layer = 8
-        model.add(Dense(n_layer,activation=act_fun))
-        model.add(Dense(n_layer,activation=act_fun))
-        model.add(Dense(n_layer,activation=act_fun))
+        n_neurons = 8
+        for i in range(3):
+            model.add(Dense(n_neurons,activation=act_fun))
+            # model.add(Dropout(0.2))
         model.add(Dense(1,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
 
         # Compile the model with custom loss function
+        # learning_rate = 0.0001  # Specify your desired learning rate
+        # optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         model.compile(optimizer='adam',
-                      loss=f.custom_loss(model, inv_train, cauchy_train, lambda_train, y_train, g),
+                      loss=f.custom_loss(model, tf.Variable(X_train), y_train, cauchy_train, lambda_train,  g),
                     #   metrics=[f.custom_metric]
                       )
 
@@ -78,9 +92,13 @@ def main(data_dir):
         scaler = joblib.load('GOH_NN.scaler')
 
     # Evaluate the trained NN
-    f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,'NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
-    f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,'NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
-    f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,'NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
+    # f.plot(data_x,  g,'NN_x.svg',   'NN_offX',        method='NN',model=model,scaler=scaler)
+    # f.plot(data_y,  g,'NN_y.svg',   'NN_offY',        method='NN',model=model,scaler=scaler)
+    # f.plot(data_eq, g,'NN_eq.svg',  'NN_equibiaxial', method='NN',model=model,scaler=scaler)
+
+    f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
+    f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
+    f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
 
     # lambdas = data_eq[L_col].values
     # invs    = data_eq[I_col].values
