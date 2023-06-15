@@ -1,0 +1,13 @@
+  message: Desired error not necessarily achieved due to precision loss.
+  success: False
+   status: 2
+      fun: 2.2868306725126017
+        x: [ 3.524e+00  2.007e+02  3.935e+01  3.559e-01]
+      nit: 88
+      jac: [ 7.990e-04  2.108e-03 -8.866e-03  1.947e-01]
+ hess_inv: [[ 9.047e-01 -2.402e-01  2.086e-02  3.503e-03]
+            [-2.402e-01  3.609e+01  1.081e+00  1.879e-03]
+            [ 2.086e-02  1.081e+00  3.340e-02  9.502e-05]
+            [ 3.503e-03  1.879e-03  9.502e-05  5.459e-05]]
+     nfev: 1022
+     njev: 202

@@ -21,6 +21,7 @@
 
 # Import  packages
 from consts import *
+import re
 import os
 import sys
 import pandas as pd
@@ -29,6 +30,7 @@ import matplotlib.pyplot as plt
 import autograd.numpy as np
 from autograd import jacobian
 # import scipy
+from sklearn.preprocessing import MinMaxScaler
 from scipy.optimize import minimize
 from scipy.optimize import Bounds
 import tensorflow as tf
@@ -104,7 +106,7 @@ def GOH_energy(const,I):
     W_aniso = k1 / (2 * k2) * np.sum(np.exp((k2 * E**2) - 1), axis=1)
     return W_iso + W_aniso
 
-def WI_stress_GOH(data,g,const,del_I):
+def WI_stress_GOH(data,g,consts,del_I):
     """ calculate stress using the energy method based on invariants of tensor C
     """
     # collect lambdas and square them
@@ -116,15 +118,17 @@ def WI_stress_GOH(data,g,const,del_I):
     inv_list = ['I1','I41','I42']
     invs = data[inv_list]
     dWI = pd.DataFrame()
+    c = consts
     for i in range(3):
         Is = [invs.copy() for _ in range(2)]
         Is[0][inv_list[i]] += del_I
         Is[1][inv_list[i]] -= del_I
-        dWI[dWI_dic[i]] = (GOH_energy(const,Is[0].values) - GOH_energy(const,Is[1].values)) / (2*del_I)
+        dWI[dWI_dic[i]] = (GOH_energy(c,Is[0].values) - GOH_energy(c,Is[1].values)) / (2*del_I)
     # loop over data points
     sigma = np.empty((data.shape[0],2))
     for i in range(data.shape[0]):
         # calculate S
+        # print(i)
         S1 = dWI[dWI_dic[0]][i] * np.eye(3)
         S2 = dWI[dWI_dic[1]][i] * np.outer(g[0,:],g[0,:])
         S3 = dWI[dWI_dic[2]][i] * np.outer(g[1,:],g[1,:])
@@ -136,12 +140,46 @@ def WI_stress_GOH(data,g,const,del_I):
         # sigma[i,0] = lam1_2[i+1] * S_PK2[0,0] - p
         # sigma[i,1] = lam2_2[i+1] * S_PK2[1,1] - p
         # OR: do them in one line
-        sigma[i,:] = [lam1_2[i+1] * S_PK2[0,0] , lam2_2[i+1] * S_PK2[1,1]] - (lam3_2[i+1] * S_PK2[2,2])
+        sigma[i,:] = [lam1_2[i] * S_PK2[0,0] , lam2_2[i] * S_PK2[1,1]] - (lam3_2[i] * S_PK2[2,2])
     
     # sigma = sigma.round(decimals=3)
     return sigma
     
+def read_data(current_dir):
+    folder_path = 'data'
+    os.makedirs(folder_path, exist_ok=True)
+    dataFile_eq  = os.path.join(current_dir, "data\\data_eq.csv")
+    dataFile_x  = os.path.join(current_dir, "data\\data_x.csv")
+    dataFile_y  = os.path.join(current_dir, "data\\data_y.csv")
+    dataFile_g  = os.path.join(current_dir, "data\\g.csv")
 
+    # Check if the file exists
+    if os.path.exists(dataFile_eq):
+        # Load the DataFrame from the saved files
+        data_eq = pd.read_csv(dataFile_eq)
+        data_x = pd.read_csv(dataFile_x)
+        data_y = pd.read_csv(dataFile_y)
+        g = np.loadtxt(dataFile_g, delimiter=',')
+    else:
+        # data_dir = "C:\\Users\P268670\Documents\Work\git\GOH_model\dataset\\"
+        data_eq = data_dir+'Subject111_Sample1_YoungDorsal_Equibiaxial.csv'
+        data_x = data_dir+'Subject111_Sample1_YoungDorsal_OffbiaxialX.csv'
+        data_y = data_dir+'Subject111_Sample1_YoungDorsal_OffbiaxialY.csv'
+        
+        # The output of the data_preparation function has the folloing column_names:
+        # ['Lambda11(-)', 'Lambda22(-)', 'Sigma11(KPa)', 'Sigma22(KPa)', 'Energy_exp', 'Lambda33(-)', 'I1', 'I41', 'I42']
+
+        data_eq, g = data_preparation(data_eq)
+        data_x = data_preparation(data_x)[0]
+        data_y = data_preparation(data_y)[0]
+
+        # Save the DataFrame to the file
+        data_eq.to_csv(dataFile_eq, index=False)
+        data_x.to_csv(dataFile_x, index=False)
+        data_y.to_csv(dataFile_y, index=False)
+        g = np.savetxt(dataFile_g, g, delimiter=',')
+
+    return data_eq, data_x, data_y, g
 
 def WI_stress_NN_train(lambdas,invs,g,dWI):
     """ calculate stress using the energy method based on invariants of tensor C
@@ -261,45 +299,52 @@ def data_preparation(data_file):
 
     return data_, g
     
-def custom_loss(model, input_train, input_eval, cauchy_train, cauchy_eval, lambda_train, lambda_eval, g):
+def custom_loss(model, inv_train, cauchy_train, lambda_train, W_train, g):
     def loss_function(y_true, y_pred):
         ## Energy Loss
-        mse_W = tf.reduce_mean(tf.square(y_true[:, 0] - y_pred[:, 0]))  # Mean squared error for energy
+        # mse_W = tf.reduce_mean(tf.square(y_true[:, 0] - y_pred[:, 0]))  # Mean squared error for energy
 
         ## data prep for derivative and cauchy stress losses
-        if K.learning_phase() == 0:  # Training phase
-            X = input_train
-            Y = cauchy_train
-            lambdas = lambda_train
-        else:    # Evaluation phase
-            X = input_eval
-            Y = cauchy_eval
-            lambdas = lambda_eval
+        # if K.learning_phase() == 0:  # Training phase
+        X = inv_train
+        S = cauchy_train
+        W = W_train
+        lambdas = lambda_train
+        # else:    # Evaluation phase
+        #     X = input_eval
+        #     Y = cauchy_eval
+        #     lambdas = lambda_eval
 
-        ## Derivative Losses
         out = model(X)
-        dWI = tf.gradients(out[:, 0], X)[0]
-        dWI = tf.cast(dWI, tf.float32)
-        # mse_dWI1 = tf.reduce_mean(tf.square(dWI[:, 0] - out[:, 1]))  # Mean squared error with derivative
-        # mse_dWI2 = tf.reduce_mean(tf.square(dWI[:, 1] - out[:, 2]))  # Mean squared error with derivative
-        # mse_dWI3 = tf.reduce_mean(tf.square(dWI[:, 2] - out[:, 3]))  
-        # mse_dWI = mse_dWI1 + mse_dWI2 + mse_dWI3
-        # Or concicely:
-        mse_dWI = tf.reduce_mean(tf.square(dWI - out[:, 1:]))  # Mean squared error for derivative
+        
+        # ## Energy Loss
+        W = tf.cast(W, dtype=out.dtype)
+        print(W)
+        print(y_true)
+        print(tf.reduce_all(tf.equal(W, y_true)))
+        exit()
+        mse_W = tf.reduce_mean(tf.square(W[:, 0] - out[:, 0]))  # Mean squared error for energy
 
-        L1 = mse_W + mse_dWI
+        # ## Derivative Losses
+        # dWI = tf.gradients(out[:, 0], X)[0]
+        # dWI = tf.cast(dWI, tf.float32)
+        # mse_dWI = tf.reduce_mean(tf.square(dWI - out[:, 1:]))  # Mean squared error for derivative
+
+        L1 = mse_W #+ mse_dWI
 
         ## Stress loss
-        stress  = WI_stress_NN_train(lambdas,X,g,dWI)
-        # L_stress = tf.reduce_mean(tf.square(Y - stress))  # Mean squared error for stress
-        L_stress = tf.sqrt(tf.reduce_sum(tf.square(Y - stress))) # Forbenius norm of Y - stress
+        # stress  = WI_stress_NN_train(lambdas,X,g,dWI)
+        # L_stress = tf.reduce_mean(tf.square(S - stress))  # Mean squared error for stress
+        # S = tf.cast(S, dtype=out.dtype)
+        # L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - out, axis=1), axis=0))
 
-        L2 = L_stress
+        # L2 = L_stress
 
         a1 = 0.1
         a2 = 1
 
-        total_loss = a1*L1 + a2*L2
+        total_loss = L1
+        
         return total_loss  # Combine the two losses
 
     return loss_function
@@ -317,12 +362,54 @@ def const_read(const_file):
         lines = file.readlines()
     # Extract the values of x from the appropriate line
     for line in lines:
-        if line.startswith('        x:'):
+        match = re.search(r'\s*x:', line)
+        if match:
             x_values_str = line.split(':')[1].strip()
             x_values_str = x_values_str.replace('[', '').replace(']', '')  # Remove square brackets
             X = [float(value) for value in x_values_str.split()]
             return X
     return None
+
+
+def plot(data_,g,fig_name,title,method,consts=[],model=[],scaler=[],stress_fig=True,energy_fig=False):
+    lambdas = data_[L_col].values
+    
+    if method == 'optimizer':
+        stress = WI_stress_GOH(data_, g,consts,del_I)
+    elif method == 'NN':
+        invs    = data_[I_col].values
+        invs    = scaler.transform(invs)
+
+        W = model(invs)
+
+        # stress  = model(invs)
+        # dWI     = model(invs)[:, 1:]
+        # stress  = WI_stress_NN_train(lambdas,invs,g,dWI)
+    
+    if stress_fig:
+        sigmas  = data_[S_col].values
+
+        plt.plot(lambdas[:, 0], sigmas[:, 0], 'wo', markeredgecolor='b', label='X - data')
+        plt.plot(lambdas[:, 1], sigmas[:, 1], 'wo', markeredgecolor='r', label='Y - data')
+        plt.plot(lambdas[:, 0], stress[:, 0], 'b-', label='X - model')
+        plt.plot(lambdas[:, 1], stress[:, 1], 'r-', label='Y - model')
+        plt.legend()
+        plt.xlabel('stretch')
+        plt.ylabel('stress (KPa)')
+        plt.title(title)
+        plt.savefig(fig_name, format='svg')
+        plt.show()
+    
+    if energy_fig:
+        energy  = data_[W_col].values
+
+        plt.plot(energy, W, 'wo', markeredgecolor='b')
+        plt.xlabel('data')
+        plt.ylabel('model')
+        plt.title(title)
+        plt.savefig(fig_name, format='svg')
+        plt.show()
+
 
 
 if __name__ == "__main__":

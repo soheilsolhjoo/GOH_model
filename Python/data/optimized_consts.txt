@@ -1,0 +1,10 @@
+  message: CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH
+  success: True
+   status: 0
+      fun: 0.004614159631808972
+        x: [ 1.045e-03  3.298e-01  9.645e-01  3.333e-01]
+      nit: 14
+      jac: [-9.465e-05 -7.689e-05  1.558e-04 -6.783e-03]
+     nfev: 115
+     njev: 23
+ hess_inv: <4x4 LbfgsInvHessProduct with dtype=float64>
