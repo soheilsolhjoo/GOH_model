@@ -11,22 +11,29 @@ Hess_t= tf.transpose(Hess, perm=[0, 2, 1])
 # print(Hess-Hess_t)
 print(tf.reduce_mean(tf.reduce_sum(Hess - Hess_t, axis=[-2,-1])))
 
-Delta_k = []
-for i in range(Hess.shape[0]):
-    # Get the 3x3 matrix at the current row
-    matrix = Hess[i]
+# Delta_k = []
+# for i in range(Hess.shape[0]):
+#     # Get the 3x3 matrix at the current row
+#     matrix = Hess[i]
 
-    # Calculate the values
-    first_column = matrix[0, 0]
-    second_column = tf.linalg.det(matrix[:2, :2])
-    third_column = tf.linalg.det(matrix)
+#     # Calculate the values
+#     first_column = matrix[0, 0]
+#     second_column = tf.linalg.det(matrix[:2, :2])
+#     third_column = tf.linalg.det(matrix)
 
-    # Append the values as a row to the new array
-    Delta_k.append([first_column, second_column, third_column])
+#     # Append the values as a row to the new array
+#     Delta_k.append([first_column, second_column, third_column])
+
+Delta_k = [
+    [matrix[0, 0],
+     tf.linalg.det(matrix[:2, :2]),
+     tf.linalg.det(matrix)]
+    for matrix in Hess
+]
 
 # Convert the list to a TensorFlow tensor
 Delta_k = tf.convert_to_tensor(Delta_k)
-L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(-Delta_k, 0), axis=1))
+L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(tf.math.negative(Delta_k), 0), axis=1))
 
 print(Delta_k)
 print(L_positive)
