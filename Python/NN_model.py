@@ -78,7 +78,7 @@ def main(data_dir):
         model.fit(x=X_train,y=y_train,
             # validation_data=(X_eval,y_eval.values),
             # batch_size=8
-            epochs=150,
+            epochs=1000,
             # callbacks=[early_stop]
             )
         

@@ -319,53 +319,55 @@ def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42)
         # ## Energy Loss
         W = tf.cast(W_train, dtype=out.dtype)
         mse_W = tf.reduce_mean(tf.square(W[:, 0] - out[:, 0]))  # Mean squared error for energy
-        ## Derivative Losses
+        # ## Derivative Losses
         dWI = tf.cast(tf.gradients(out[:, 0], X)[0], tf.float32)
         mse_dWI = tf.reduce_mean(tf.square(dWI - out[:, 1:]))  # Mean squared error for derivative
         L1 = mse_W + mse_dWI
 
-        # # ## Stress loss
-        # stress  = WI_stress_NN_train(lambda_train,X,out[:, 1:],G41,G42)        
-        # S = tf.cast(cauchy_train, dtype=stress.dtype)
-        # L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - stress, axis=1), axis=0))
-        # L2 = L_stress
+        # ## Stress loss
+        stress  = WI_stress_NN_train(lambda_train,X,out[:, 1:],G41,G42)        
+        S = tf.cast(cauchy_train, dtype=stress.dtype)
+        L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - stress, axis=1), axis=0))
+        L2 = L_stress
 
         # ## convexity loss
-        # dWI1  = tf.cast(tf.gradients(dWI[:,0], X)[0], tf.float32)
-        # dWI41 = tf.cast(tf.gradients(dWI[:,1], X)[0], tf.float32)
-        # dWI42 = tf.cast(tf.gradients(dWI[:,2], X)[0], tf.float32)
-        dWI1, dWI41, dWI42 = [tf.cast(tf.gradients(dWI[:,i], X)[0], tf.float32) for i in range(3)]
-        Hess = tf.transpose(tf.stack([dWI1, dWI41, dWI42]), perm=[1, 0, 2])
+        ddWI1, ddWI41, ddWI42 = [tf.cast(tf.gradients(out[:, i+1], X)[0], tf.float32) for i in range(3)]
+
+        Hess = tf.transpose(tf.stack([ddWI1, ddWI41, ddWI42]), perm=[1, 0, 2])
         Hess_t= tf.transpose(Hess, perm=[0, 2, 1])
-        L_Hess = tf.squeeze(tf.reduce_mean(tf.expand_dims(tf.norm(Hess - Hess_t, axis=[-2, -1]), axis=-1), axis=0))
 
-        Delta_k = []
-        for i in range(Hess.shape[0]):
-            # Get the 3x3 matrix at the current row
-            matrix = Hess[i]
+        # Hessain symmetry loss
+        # L_Hess = tf.squeeze(tf.reduce_mean(tf.expand_dims(tf.norm(Hess - Hess_t, axis=[-2, -1]), axis=-1), axis=0))
+        L_Hess = tf.reduce_mean(tf.reduce_sum(Hess - Hess_t, axis=[-2,-1]))
 
-            # Calculate the values based on the given criteria
-            first_column = matrix[0, 0]
-            second_column = tf.linalg.det(matrix[:2, :2])
-            third_column = tf.linalg.det(matrix)
+        # Delta_k = []
+        # for i in range(Hess.shape[0]):
+        #     # Get the 3x3 matrix at the current row
+        #     matrix = Hess[i]
 
-            # Append the values as a row to the new array
-            Delta_k.append([first_column, second_column, third_column])
+        #     # Calculate the values
+        #     first_column = matrix[0, 0]
+        #     second_column = tf.linalg.det(matrix[:2, :2])
+        #     third_column = tf.linalg.det(matrix)
 
-        # Convert the list to a TensorFlow tensor
-        Delta_k = tf.convert_to_tensor(Delta_k)
-        L_positive = tf.reduce_mean(tf.maximum(-Delta_k, 0))
+        #     # Append the values as a row to the new array
+        #     Delta_k.append([first_column, second_column, third_column])
 
-        # print(L_Hess)
-        # print(L_positive)
-        # exit()
+        # # Convert the list to a TensorFlow tensor
+        # Delta_k = tf.convert_to_tensor(Delta_k)
+        # L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(-Delta_k, 0), axis=1))
 
-        L3 = L_Hess + L_positive
 
+        L3 = L_Hess #+ L_positive
+        # if not tf.math.is_nan(L_Hess):
+        #     L3 = L_Hess
+        # if not tf.math.is_nan(L_positive):
+        #     L3 = L3 + L_positive
+        
         # a1 = 0.1
         # a2 = 1
 
-        total_loss = L1 + L3
+        total_loss = L1 + L2 + L3
         return total_loss
 
     return loss_function
