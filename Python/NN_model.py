@@ -67,7 +67,7 @@ def main(data_dir):
         # learning_rate = 0.0001  # Specify your desired learning rate
         # optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         model.compile(optimizer='adam',
-                      loss=f.custom_loss(model, tf.Variable(X_train), y_train, cauchy_train, lambda_train,  G41,G42),
+                      loss=f.custom_loss(model, tf.Variable(tf.convert_to_tensor(X_train)), y_train, cauchy_train, lambda_train,  G41,G42),
                     #   metrics=[f.custom_metric]
                       )
 
@@ -78,7 +78,7 @@ def main(data_dir):
         model.fit(x=X_train,y=y_train,
             # validation_data=(X_eval,y_eval.values),
             # batch_size=8
-            epochs=1000,
+            epochs=150,
             # callbacks=[early_stop]
             )
         

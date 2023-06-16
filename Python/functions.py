@@ -34,6 +34,7 @@ from sklearn.preprocessing import MinMaxScaler
 from scipy.integrate import cumtrapz
 from scipy.optimize import minimize, Bounds
 import tensorflow as tf
+# from tensorflow import Tensor
 import tensorflow.keras.backend as K
 import keras
 from consts import *
@@ -215,29 +216,17 @@ def WI_stress_NN_train(lambdas,invs,dWI,G41,G42):
         S2 = dWI[i,1] * G41 #np.outer(g[0,:],g[0,:])
         S3 = dWI[i,2] * G42 #np.outer(g[1,:],g[1,:])
         S_PK2 = 2 * (S1 + S2 + S3)
-        # print("*: ", dWI[i,0])
-        # # print(S_PK2.consumers())
-        # # tf.print(S_PK2.eval())
-        # # tf.print(S_PK2, output_stream=sys.stderr)
-        # exit()
-        # calculate Cauchy stresses
+
+        # calculate pressure
         p = lambdas_2[i,2] * S_PK2[2,2]
-
-        # # to be used with tf.Variable, which doesn't work
-        # sigma[i, 0].assign(lambdas_2[i, 0] * S_PK2[0, 0] - p)
-        # sigma[i, 1].assign(lambdas_2[i, 1] * S_PK2[1, 1] - p)
-
+        # calculate Cauchy stresses
         sigma = sigma.write(i, [
             lambdas_2[i, 0] * S_PK2[0, 0] - p,
             lambdas_2[i, 1] * S_PK2[1, 1] - p
         ])
-        # calculate Cauchy stresses
-        # sigma[i,0] = lambdas_2[i,0] * S_PK2[0,0] - p
-        # sigma[i,1] = lambdas_2[i,1] * S_PK2[1,1] - p
-        # sigma[i,:] = [lambdas_2[i,0] * S_PK2[0,0] , lambdas_2[i,1] * S_PK2[1,1]] - (lambdas_2[i,2] * S_PK2[2,2])
-    
-    # sigma = sigma.round(decimals=3)
-    return sigma.stack()
+    sigma = sigma.stack()
+
+    return sigma
 
 
 
@@ -316,53 +305,68 @@ def data_preparation(data_file):
     return data_, g
 
 def tf_nan_check(variable,name):
-    if tf.math.is_nan(variable):
+    # if tf.math.is_nan(variable):
+    if tf.math.reduce_any(tf.math.is_nan(variable)):
         # print(nameof(variable), variable)
         print(name,' : ', variable)
 
     
 def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42):
     def loss_function(y_true, y_pred):
-    # def loss_function():
         X = inv_train
         out = model(X)
         
         # ## Energy Loss
         W = tf.cast(W_train, dtype=out.dtype)
         mse_W = tf.reduce_mean(tf.square(W[:, 0] - out[:, 0]))  # Mean squared error for energy
-
         ## Derivative Losses
         dWI = tf.cast(tf.gradients(out[:, 0], X)[0], tf.float32)
         mse_dWI = tf.reduce_mean(tf.square(dWI - out[:, 1:]))  # Mean squared error for derivative
-
         L1 = mse_W + mse_dWI
 
         # # ## Stress loss
-        lambdas = lambda_train
-        stress  = WI_stress_NN_train(lambdas,X,out[:, 1:],G41,G42)
-        S = tf.cast(cauchy_train, dtype=out.dtype)
-        L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - stress, axis=1), axis=0))
+        # stress  = WI_stress_NN_train(lambda_train,X,out[:, 1:],G41,G42)        
+        # S = tf.cast(cauchy_train, dtype=stress.dtype)
+        # L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - stress, axis=1), axis=0))
+        # L2 = L_stress
 
-        L2 = L_stress
+        # ## convexity loss
+        # dWI1  = tf.cast(tf.gradients(dWI[:,0], X)[0], tf.float32)
+        # dWI41 = tf.cast(tf.gradients(dWI[:,1], X)[0], tf.float32)
+        # dWI42 = tf.cast(tf.gradients(dWI[:,2], X)[0], tf.float32)
+        dWI1, dWI41, dWI42 = [tf.cast(tf.gradients(dWI[:,i], X)[0], tf.float32) for i in range(3)]
+        Hess = tf.transpose(tf.stack([dWI1, dWI41, dWI42]), perm=[1, 0, 2])
+        Hess_t= tf.transpose(Hess, perm=[0, 2, 1])
+        L_Hess = tf.squeeze(tf.reduce_mean(tf.expand_dims(tf.norm(Hess - Hess_t, axis=[-2, -1]), axis=-1), axis=0))
+
+        Delta_k = []
+        for i in range(Hess.shape[0]):
+            # Get the 3x3 matrix at the current row
+            matrix = Hess[i]
+
+            # Calculate the values based on the given criteria
+            first_column = matrix[0, 0]
+            second_column = tf.linalg.det(matrix[:2, :2])
+            third_column = tf.linalg.det(matrix)
+
+            # Append the values as a row to the new array
+            Delta_k.append([first_column, second_column, third_column])
+
+        # Convert the list to a TensorFlow tensor
+        Delta_k = tf.convert_to_tensor(Delta_k)
+        L_positive = tf.reduce_mean(tf.maximum(-Delta_k, 0))
+
+        # print(L_Hess)
+        # print(L_positive)
+        # exit()
+
+        L3 = L_Hess + L_positive
 
         # a1 = 0.1
         # a2 = 1
 
-        total_loss = L1 + L2
-
-        tf_nan_check(mse_W,'mse_W')
-        tf_nan_check(mse_dWI,'mse_dWI')
-        tf_nan_check(L_stress,'L_stress')
-        exit()
-
-        # if tf.math.is_nan(total_loss):
-            # if tf.math.is_nan(L1):
-            #     print('L1: nan')
-            # if tf.math.is_nan(L2):
-            #     print('L2: nan')
-            # exit()
-        
-        return total_loss  # Combine the two losses
+        total_loss = L1 + L3
+        return total_loss
 
     return loss_function
 

@@ -1,5 +1,14 @@
-from varname import nameof
+import tensorflow as tf
 
-s = 'Hey!'
+# Scalar tensor
+scalar_tensor = tf.constant(5)  # Shape: ()
 
-print (nameof(s))
+# 1D tensor
+tensor_1d = tf.constant([2])  # Shape: (1,)
+print(tf.squeeze(tensor_1d))
+
+# Addition
+result = scalar_tensor + tensor_1d
+
+# Print the result
+print("Result:", result)
