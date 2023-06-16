@@ -21,6 +21,8 @@ def main(data_dir):
     NN_file_path = os.path.join(current_dir, "GOH_NN.h5")
     
     data_eq, data_x, data_y, g = f.read_data(current_dir,data_dir)
+    G41 = tf.cast(tf.einsum('i,j->ij', g[0,:], g[0,:]), tf.float32)
+    G42 = tf.cast(tf.einsum('i,j->ij', g[1,:], g[1,:]), tf.float32)
     
     if not os.path.exists(NN_file_path):
         ## collect data
@@ -59,13 +61,13 @@ def main(data_dir):
         for i in range(3):
             model.add(Dense(n_neurons,activation=act_fun))
             # model.add(Dropout(0.2))
-        model.add(Dense(1,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
+        model.add(Dense(4,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
 
         # Compile the model with custom loss function
         # learning_rate = 0.0001  # Specify your desired learning rate
         # optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         model.compile(optimizer='adam',
-                      loss=f.custom_loss(model, tf.Variable(X_train), y_train, cauchy_train, lambda_train,  g),
+                      loss=f.custom_loss(model, tf.Variable(X_train), y_train, cauchy_train, lambda_train,  G41,G42),
                     #   metrics=[f.custom_metric]
                       )
 
@@ -96,9 +98,9 @@ def main(data_dir):
     # f.plot(data_y,  g,'NN_y.svg',   'NN_offY',        method='NN',model=model,scaler=scaler)
     # f.plot(data_eq, g,'NN_eq.svg',  'NN_equibiaxial', method='NN',model=model,scaler=scaler)
 
-    f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
-    f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
-    f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=False,energy_fig=True)
+    f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
 
     # lambdas = data_eq[L_col].values
     # invs    = data_eq[I_col].values

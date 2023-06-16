@@ -37,6 +37,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import keras
 from consts import *
+from varname import nameof
 
 
 def MPa2KPa(data):
@@ -192,24 +193,27 @@ def read_data(current_dir,data_dir):
 
     return data_eq, data_x, data_y, g
 
-def WI_stress_NN_train(lambdas,invs,g,dWI):
+def WI_stress_NN_train(lambdas,invs,dWI,G41,G42):
     """ calculate stress using the energy method based on invariants of tensor C
     """
     # collect lambdas and square them
     lambdas_2 = lambdas ** 2
     # cast variables into tf.float32
     lambdas_2 = tf.cast(lambdas_2, tf.float32)
-    g = tf.cast(g, tf.float32)
+    # g = tf.cast(g, tf.float32)
     # pre-allocate memory for sigma
     # sigma = np.empty((invs.shape[0],2))
     # sigma = tf.Variable(tf.zeros((invs.shape[0], 2), dtype=tf.float32)) # Raise: ValueError: tf.function only supports singleton tf.Variables created on the first call. Make sure the tf.Variable is only created once or created outside tf.function.
     sigma = tf.TensorArray(dtype=tf.float32, size=invs.shape[0], dynamic_size=False)
     # loop over data points
+    # G41 = tf.einsum('i,j->ij', g[0,:], g[0,:])
+    # G42 = tf.einsum('i,j->ij', g[1,:], g[1,:])
+
     for i in range(invs.shape[0]):
         # calculate S
         S1 = dWI[i,0] * tf.eye(3)
-        S2 = dWI[i,1] * tf.einsum('i,j->ij', g[0,:], g[0,:]) #np.outer(g[0,:],g[0,:])
-        S3 = dWI[i,2] * tf.einsum('i,j->ij', g[1,:], g[1,:]) #np.outer(g[1,:],g[1,:])
+        S2 = dWI[i,1] * G41 #np.outer(g[0,:],g[0,:])
+        S3 = dWI[i,2] * G42 #np.outer(g[1,:],g[1,:])
         S_PK2 = 2 * (S1 + S2 + S3)
         # print("*: ", dWI[i,0])
         # # print(S_PK2.consumers())
@@ -234,6 +238,7 @@ def WI_stress_NN_train(lambdas,invs,g,dWI):
     
     # sigma = sigma.round(decimals=3)
     return sigma.stack()
+
 
 
 def WI_stress_NN(lambdas,invs,g,dWI):
@@ -309,8 +314,14 @@ def data_preparation(data_file):
     data_ = C_I4(data_,g)
 
     return data_, g
+
+def tf_nan_check(variable,name):
+    if tf.math.is_nan(variable):
+        # print(nameof(variable), variable)
+        print(name,' : ', variable)
+
     
-def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, g):
+def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42):
     def loss_function(y_true, y_pred):
     # def loss_function():
         X = inv_train
@@ -320,26 +331,36 @@ def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, g):
         W = tf.cast(W_train, dtype=out.dtype)
         mse_W = tf.reduce_mean(tf.square(W[:, 0] - out[:, 0]))  # Mean squared error for energy
 
-        # ## Derivative Losses
-        # dWI = tf.gradients(out[:, 0], X)[0]
-        # dWI = tf.cast(dWI, tf.float32)
-        # mse_dWI = tf.reduce_mean(tf.square(dWI - out[:, 1:]))  # Mean squared error for derivative
+        ## Derivative Losses
+        dWI = tf.cast(tf.gradients(out[:, 0], X)[0], tf.float32)
+        mse_dWI = tf.reduce_mean(tf.square(dWI - out[:, 1:]))  # Mean squared error for derivative
 
-        L1 = mse_W #+ mse_dWI
+        L1 = mse_W + mse_dWI
 
-        # # # ## Stress loss
-        # # lambdas = lambda_train
-        # # # stress  = WI_stress_NN_train(lambdas,X,g,dWI)
-        # # # L_stress = tf.reduce_mean(tf.square(Y - stress))  # Mean squared error for stress
-        # S = tf.cast(cauchy_train, dtype=out.dtype)
-        # L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - out, axis=1), axis=0))
+        # # ## Stress loss
+        lambdas = lambda_train
+        stress  = WI_stress_NN_train(lambdas,X,out[:, 1:],G41,G42)
+        S = tf.cast(cauchy_train, dtype=out.dtype)
+        L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - stress, axis=1), axis=0))
 
-        # L2 = L_stress
+        L2 = L_stress
 
         # a1 = 0.1
         # a2 = 1
 
-        total_loss = L1
+        total_loss = L1 + L2
+
+        tf_nan_check(mse_W,'mse_W')
+        tf_nan_check(mse_dWI,'mse_dWI')
+        tf_nan_check(L_stress,'L_stress')
+        exit()
+
+        # if tf.math.is_nan(total_loss):
+            # if tf.math.is_nan(L1):
+            #     print('L1: nan')
+            # if tf.math.is_nan(L2):
+            #     print('L2: nan')
+            # exit()
         
         return total_loss  # Combine the two losses
 
@@ -376,11 +397,13 @@ def plot(data_,g,fig_name,title,method,consts=[],model=[],scaler=[],stress_fig=T
         invs    = data_[I_col].values
         invs    = scaler.transform(invs)
 
-        W = model(invs)
         # stress  = model(invs)
-        
-        # dWI     = model(invs)[:, 1:]
-        # stress  = WI_stress_NN_train(lambdas,invs,g,dWI)
+        NN_out = model(invs)
+        W   = NN_out[:,0]
+        dWI = NN_out[:, 1:]
+        G41 = tf.cast(tf.einsum('i,j->ij', g[0,:], g[0,:]), tf.float32)
+        G42 = tf.cast(tf.einsum('i,j->ij', g[1,:], g[1,:]), tf.float32)
+        stress  = WI_stress_NN_train(lambdas,invs,dWI,G41,G42)
     
     if stress_fig:
         sigmas  = data_[S_col].values
@@ -393,17 +416,18 @@ def plot(data_,g,fig_name,title,method,consts=[],model=[],scaler=[],stress_fig=T
         plt.xlabel('stretch')
         plt.ylabel('stress (KPa)')
         plt.title(title)
-        plt.savefig(fig_name, format='svg')
+        plt.savefig(fig_name+'_S.svg', format='svg')
         plt.show()
     
     if energy_fig:
         energy  = data_[W_col].values
 
-        plt.plot(energy, W, 'wo', markeredgecolor='b')
+        plt.plot(energy, W, 'wo', markeredgecolor='r')
+        plt.plot(energy, energy, 'b-')
         plt.xlabel('data')
         plt.ylabel('model')
         plt.title(title)
-        plt.savefig(fig_name, format='svg')
+        plt.savefig(fig_name+'_E.svg', format='svg')
         plt.show()
 
 
