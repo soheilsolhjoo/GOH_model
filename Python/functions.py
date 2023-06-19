@@ -377,16 +377,22 @@ def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42)
         # print(len(matrix_list))
 
         Delta_k = []
-        for i in range(1, len(matrix_list)):
-            print(i)
-            delta_i = [tf.gather(matrix_list[i][0], 0),
-                       calculate_determinant(matrix_list[i][:2, :2]),
-                       calculate_determinant(matrix_list[i])
+        for i in range(len(matrix_list)):
+            m = matrix_list[i]
+            det = m[0, 0] * (m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2]) \
+                - m[0, 1] * (m[1, 0] * m[2, 2] - m[2, 0] * m[1, 2]) \
+                + m[0, 2] * (m[1, 0] * m[2, 1] - m[2, 0] * m[1, 1])
+            delta_i = [#tf.gather(m[0], 0),
+                       m[0,0],
+                       m[0,0]*m[1,1] - m[0,1]*m[1,0],
+                       det
+                    #    tf.linalg.det(m)
             ]
+            # print(delta_i)
             Delta_k.append(delta_i)
         Delta_k = tf.stack(Delta_k)
-        print(Delta_k)
-        exit()
+        # print(Delta_k)
+        # exit()
         ## positive-definiteness of Hessain
         L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(tf.math.negative(Delta_k), 0), axis=1))
         L3 += L_positive

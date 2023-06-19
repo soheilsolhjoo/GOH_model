@@ -60,7 +60,7 @@ def main(data_dir):
         n_neurons = 8
         for i in range(3):
             model.add(Dense(n_neurons,activation=act_fun))
-            # model.add(Dropout(0.2))
+            model.add(Dropout(0.2))
         model.add(Dense(4,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
 
         # Compile the model with custom loss function
@@ -80,7 +80,7 @@ def main(data_dir):
         model.fit(x=X_train,y=y_train,
             # validation_data=(X_eval,y_eval.values),
             # batch_size=8
-            epochs=1000,
+            epochs=100,
             # callbacks=[early_stop]
             )
         
