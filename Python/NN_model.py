@@ -64,11 +64,11 @@ def main(data_dir):
         model.add(Dense(4,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
 
         # Compile the model with custom loss function
-        learning_rate = 0.0001  # Specify your desired learning rate
-        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        # learning_rate = 0.0001  # Specify your desired learning rate
+        # optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         model.compile(
-                    #   optimizer='adam',
-                      optimizer=optimizer,
+                      optimizer='adam',
+                    #   optimizer=optimizer,
                       loss=f.custom_loss(model, tf.Variable(tf.convert_to_tensor(X_train)), y_train, cauchy_train, lambda_train,  G41,G42),
                     #   metrics=[f.custom_metric]
                       )

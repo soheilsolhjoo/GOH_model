@@ -310,6 +310,33 @@ def tf_nan_check(variable,name):
         # print(nameof(variable), variable)
         print(name,' : ', variable)
 
+
+# Enable eager execution
+# tf.config.run_functions_eagerly(True)
+# @tf.function
+def calculate_determinant(matrix):
+    with tf.compat.v1.Session() as sess:
+        matrix_size = sess.run(tf.shape(matrix))[0]
+
+    if matrix_size == 2:
+        a = matrix[0, 0]
+        b = matrix[0, 1]
+        c = matrix[1, 0]
+        d = matrix[1, 1]
+
+        determinant = a * d - b * c
+
+    elif matrix_size >= 3:
+        determinant = tf.constant(0.0, dtype=tf.float32)  # Use float constant instead of int
+        for j in range(matrix_size):
+            submatrix = tf.concat([matrix[1:, :j], matrix[1:, j+1:]], axis=1)
+            determinant += tf.cast(((-1) ** j), dtype=tf.float32) * matrix[0, j] * calculate_determinant(submatrix)
+    
+    else:
+        raise ValueError("Unsupported matrix size. Expected at least 2x2.")
+
+    return determinant
+
     
 def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42):
     def loss_function(y_true, y_pred):
@@ -340,18 +367,30 @@ def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42)
         Hess = tf.transpose(tf.stack([ddWI1, ddWI41, ddWI42]), perm=[1, 0, 2])
         Hess_t= tf.transpose(Hess, perm=[0, 2, 1])
 
-        # Hessain symmetry loss
+        ## symmetry of Hessain
         L_Hess = tf.reduce_mean(tf.reduce_sum(Hess - Hess_t, axis=[-2,-1]))
         L3 = L_Hess
 
-        # # Calculate the minors
-        # first_column = tf.gather(Hess[:, 0, 0], tf.range(Hess.shape[0]))
-        # second_column = tf.linalg.det(Hess[:, :2, :2])
-        # third_column = tf.linalg.det(Hess)
-        # Delta_k = tf.stack([first_column, second_column, third_column], axis=1)
-        # # convexity loss
-        # L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(tf.math.negative(Delta_k), 0), axis=1))
-        # L3 += L_positive
+        # ## Calculate the minors
+        # Distribute the matrix along the first dimension
+        matrix_list = tf.unstack(Hess)
+        # print(len(matrix_list))
+
+        Delta_k = []
+        for i in range(1, len(matrix_list)):
+            print(i)
+            delta_i = [tf.gather(matrix_list[i][0], 0),
+                       calculate_determinant(matrix_list[i][:2, :2]),
+                       calculate_determinant(matrix_list[i])
+            ]
+            Delta_k.append(delta_i)
+        Delta_k = tf.stack(Delta_k)
+        print(Delta_k)
+        exit()
+        ## positive-definiteness of Hessain
+        L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(tf.math.negative(Delta_k), 0), axis=1))
+        L3 += L_positive
+        # print(L_positive)
         
         # a1 = 0.1
         # a2 = 1
