@@ -38,7 +38,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import keras
 from consts import *
-from varname import nameof
+# from varname import nameof
 
 
 def MPa2KPa(data):
@@ -311,35 +311,10 @@ def tf_nan_check(variable,name):
         print(name,' : ', variable)
 
 
-# Enable eager execution
-# tf.config.run_functions_eagerly(True)
-# @tf.function
-def calculate_determinant(matrix):
-    with tf.compat.v1.Session() as sess:
-        matrix_size = sess.run(tf.shape(matrix))[0]
-
-    if matrix_size == 2:
-        a = matrix[0, 0]
-        b = matrix[0, 1]
-        c = matrix[1, 0]
-        d = matrix[1, 1]
-
-        determinant = a * d - b * c
-
-    elif matrix_size >= 3:
-        determinant = tf.constant(0.0, dtype=tf.float32)  # Use float constant instead of int
-        for j in range(matrix_size):
-            submatrix = tf.concat([matrix[1:, :j], matrix[1:, j+1:]], axis=1)
-            determinant += tf.cast(((-1) ** j), dtype=tf.float32) * matrix[0, j] * calculate_determinant(submatrix)
-    
-    else:
-        raise ValueError("Unsupported matrix size. Expected at least 2x2.")
-
-    return determinant
-
-    
 def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42):
     def loss_function(y_true, y_pred):
+        # X = model.inputs[0]
+        # out = y_pred
         X = inv_train
         out = model(X)
         

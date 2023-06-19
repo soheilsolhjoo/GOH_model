@@ -79,8 +79,8 @@ def main(data_dir):
         # Training the model
         model.fit(x=X_train,y=y_train,
             # validation_data=(X_eval,y_eval.values),
-            # batch_size=8
-            epochs=100,
+            batch_size=32
+            epochs=1000,
             # callbacks=[early_stop]
             )
         
@@ -100,9 +100,9 @@ def main(data_dir):
     # f.plot(data_y,  g,'NN_y.svg',   'NN_offY',        method='NN',model=model,scaler=scaler)
     # f.plot(data_eq, g,'NN_eq.svg',  'NN_equibiaxial', method='NN',model=model,scaler=scaler)
 
-    # f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
-    # f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
-    # f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
 
     lambda_space = f.lambda_space_generator(g, max_lambda=1.3, number_test_points=50)
     f.plot(lambda_space,  g, method='NN',model=model,scaler=scaler,lambda_space=True)

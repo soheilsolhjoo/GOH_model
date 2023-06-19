@@ -19,6 +19,7 @@ input_eval = tf.Variable(x_eval)
 # Define a custom loss function
 def custom_loss(y_true, y_pred):
     mse_loss = tf.reduce_mean(tf.square(y_true[:, 0] - y_pred[:, 0]))  # Mean squared error
+    
 
     if tf.keras.backend.learning_phase() == 0:  # Training phase
         X = input_train
