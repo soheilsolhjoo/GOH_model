@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from keras.engine import data_adapter
 
 # Generate random example data
 x_data = np.random.rand(100, 10)
@@ -12,6 +13,7 @@ def custom_loss(c):
         mse_loss_1 = tf.reduce_mean(tf.square(y_true[:, 0] - y_pred[:, 0]))
 
         selected_indices = loss_inputs['indices']
+        print(selected_indices)
         mse_loss_2 = tf.reduce_mean(tf.square(tf.cast(tf.gather(c, selected_indices), dtype=tf.float32) - y_pred[:, 1]))
 
         return mse_loss_1 + mse_loss_2
@@ -35,6 +37,21 @@ class CustomModel(tf.keras.Model):
             x = hidden_layer(x)
         x = self.dense_output(x)
         return x
+    
+    def train_step(self, data):
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        # ind = data[:,1]
+        # print(ind.numpy())
+        print(sample_weight)
+        exit()
+        # Run forward pass.
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            loss = self.compute_loss(x, y, y_pred, sample_weight)
+        self._validate_target_and_loss(y, loss)
+        # Run backwards pass.
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+        return self.compute_metrics(x, y, y_pred, sample_weight)
 
 # Number of folds for cross-validation
 num_folds = 5
@@ -46,7 +63,7 @@ np.random.shuffle(fold_indices)
 
 # Perform cross-validation
 for fold in range(num_folds):
-    print(f"Fold {fold+1}/{num_folds}")
+    # print(f"Fold {fold+1}/{num_folds}")
 
     # Split the data into train/validation sets
     validation_indices = fold_indices[fold * fold_size: (fold + 1) * fold_size]

@@ -1,13 +1,11 @@
 import tensorflow as tf
 import numpy as np
+from keras.engine import data_adapter
 
 # Generate random example data
 x_train = np.random.rand(100, 10)
 y_train = np.random.rand(100, 1)
 c = np.random.rand(1000, 1)
-
-# Generate indices corresponding to the training data
-train_indices = np.arange(len(x_train))
 
 # Define a custom loss function
 def custom_loss(c):
@@ -38,13 +36,27 @@ class CustomModel(tf.keras.Model):
             x = hidden_layer(x)
         x = self.dense_output(x)
         return x
+    
+    def train_step(self, data):
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        # ind = data[:,1]
+        # print(ind.numpy())
+        print(data)
+        # exit()
+        # Run forward pass.
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)
+            loss = self.compute_loss(x, y, y_pred, sample_weight)
+        self._validate_target_and_loss(y, loss)
+        # Run backwards pass.
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+        return self.compute_metrics(x, y, y_pred, sample_weight)
 
 
-
+# Generate indices corresponding to the training data
+train_indices = np.arange(len(x_train))
 # Create a dictionary of loss inputs
-loss_inputs = {
-    'indices': train_indices
-}
+loss_inputs = {'indices': train_indices}
 
 # Create an instance of the custom model
 input_neurons = 10
@@ -59,4 +71,5 @@ model = CustomModel(input_neurons, output_neurons, num_hidden_layers, hidden_neu
 model.compile(optimizer='adam', loss=custom_loss(c))
 
 # Train the model
+print(x_train)
 model.fit([x_train, train_indices], y_train, epochs=20, batch_size=16)

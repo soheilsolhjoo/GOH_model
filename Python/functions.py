@@ -403,16 +403,17 @@ def const_read(const_file):
     return None
 
 
-def plot(data_,g,fig_name=[],title=[],method=[],consts=[],model=[],scaler=[],stress_fig=True,energy_fig=False,lambda_space=False):
+def plot(data_,g,file_name=[],title=[],method=[],consts=[],model=[],scaler=[],stress_fig=False,energy_fig=False,lambda_space=False,export=False):
     lambdas = data_[L_col].values
     
     if method == 'optimizer':
+        invs    = data_[I_col].values
+        W = GOH_energy(consts,invs) 
         stress = WI_stress_GOH(data_, g,consts,del_I)
     elif method == 'NN':
         invs    = data_[I_col].values
         invs    = scaler.transform(invs)
 
-        # stress  = model(invs)
         NN_out = model(invs)
         W   = NN_out[:,0]
         dWI = NN_out[:, 1:]
@@ -422,9 +423,11 @@ def plot(data_,g,fig_name=[],title=[],method=[],consts=[],model=[],scaler=[],str
     
     if lambda_space:
         # print(data_)
-        W = pd.DataFrame(W.numpy(), columns=["Energy"])
-        stress = pd.DataFrame(stress.numpy(), columns = S_col)
-        data_ = pd.concat([data_, W, stress], axis=1)
+        # W = pd.DataFrame(W.numpy(), columns=["Energy"])
+        data_ = pd.concat([data_,
+                           pd.DataFrame(W.numpy(), columns=["Energy"]),
+                           pd.DataFrame(stress.numpy(), columns = S_col)],
+                           axis=1)
         data_.to_csv('lambda_space.csv', index=False)
         return
     
@@ -439,7 +442,7 @@ def plot(data_,g,fig_name=[],title=[],method=[],consts=[],model=[],scaler=[],str
         plt.xlabel('stretch')
         plt.ylabel('stress (KPa)')
         plt.title(title)
-        plt.savefig(fig_name+'_S.svg', format='svg')
+        plt.savefig(file_name+'_S.svg', format='svg')
         plt.show()
     
     if energy_fig:
@@ -450,8 +453,17 @@ def plot(data_,g,fig_name=[],title=[],method=[],consts=[],model=[],scaler=[],str
         plt.xlabel('data')
         plt.ylabel('model')
         plt.title(title)
-        plt.savefig(fig_name+'_E.svg', format='svg')
+        plt.savefig(file_name+'_E.svg', format='svg')
         plt.show()
+    
+    if export:
+        data_ = pd.concat([data_[L_col],
+                           pd.DataFrame(W, columns=["Energy"]),
+                           pd.DataFrame(stress, columns = S_col)],
+                           axis=1)
+        data_.to_csv(file_name+'_S.csv', index=False)
+        return
+
 
 def lambda_space_generator(g, max_lambda=1.25, number_test_points=10):
     a = np.linspace(1,max_lambda,number_test_points)

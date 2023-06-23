@@ -12,8 +12,9 @@ import os
 def main(data_dir):
     current_dir  = os.path.dirname(os.path.abspath(__file__))
     optimized_consts = os.path.join(current_dir, "optimized_consts.txt")
+    
+    data_eq, data_x, data_y, g = f.read_data(current_dir,data_dir)
 
-    data_eq, data_x, data_y, g = f.read_data(current_dir)
     data_ = pd.concat([data_eq, data_x, data_y], ignore_index=True)
 
     if os.path.exists(optimized_consts):
@@ -33,10 +34,13 @@ def main(data_dir):
         const_oped = opt_GOH.x
     
     # Test data on graph
-    f.plot(data_x, g,'GOH_x.svg' ,'GOH_offX'        ,'optimizer',consts=const_oped)
-    f.plot(data_y, g,'GOH_y.svg' ,'GOH_offY'        ,'optimizer',consts=const_oped)
-    f.plot(data_eq,g,'GOH_eq.svg','GOH_equibiaxial' ,'optimizer',consts=const_oped)
+    # f.plot(data_x, g,file_name='GOH_x' ,title='GOH_offX'        ,method='optimizer',consts=const_oped,stress_fig=True)
+    # f.plot(data_y, g,file_name='GOH_y' ,title='GOH_offY'        ,method='optimizer',consts=const_oped,stress_fig=True)
+    # f.plot(data_eq,g,file_name='GOH_eq',title='GOH_equibiaxial' ,method='optimizer',consts=const_oped,stress_fig=True)
 
+    f.plot(data_x, g,file_name='GOH_x', method='optimizer',consts=const_oped,export=True)
+    f.plot(data_y, g,file_name='GOH_y', method='optimizer',consts=const_oped,export=True)
+    f.plot(data_eq,g,file_name='GOH_eq',method='optimizer',consts=const_oped,export=True)
     
 
 if __name__ == "__main__":

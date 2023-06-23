@@ -100,16 +100,12 @@ def main(data_dir):
     # f.plot(data_y,  g,'NN_y.svg',   'NN_offY',        method='NN',model=model,scaler=scaler)
     # f.plot(data_eq, g,'NN_eq.svg',  'NN_equibiaxial', method='NN',model=model,scaler=scaler)
 
-    # f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
-    # f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
-    # f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
+    f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
 
     lambda_space = f.lambda_space_generator(g, max_lambda=1.3, number_test_points=50)
     f.plot(lambda_space,  g, method='NN',model=model,scaler=scaler,lambda_space=True)
-
-    # f.plot(data_x, g,file_name='NN_x', method='NN',model=model,scaler=scaler,export=True)
-    # f.plot(data_y, g,file_name='NN_y', method='NN',model=model,scaler=scaler,export=True)
-    # f.plot(data_eq,g,file_name='NN_eq',method='NN',model=model,scaler=scaler,export=True)
 
     # lambdas = data_eq[L_col].values
     # invs    = data_eq[I_col].values
