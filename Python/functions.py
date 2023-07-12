@@ -336,47 +336,44 @@ def custom_loss(model, inv_train, W_train, cauchy_train, lambda_train, G41, G42)
         L_stress = tf.reduce_mean(tf.reduce_mean(tf.norm(S - stress, axis=1), axis=0))
         L2 = L_stress
 
-        # ## convexity loss
-        ddWI1, ddWI41, ddWI42 = [tf.cast(tf.gradients(out[:, i+1], X)[0], tf.float32) for i in range(3)]
+        # # ## convexity loss
+        # ddWI1, ddWI41, ddWI42 = [tf.cast(tf.gradients(out[:, i+1], X)[0], tf.float32) for i in range(3)]
 
-        Hess = tf.transpose(tf.stack([ddWI1, ddWI41, ddWI42]), perm=[1, 0, 2])
-        Hess_t= tf.transpose(Hess, perm=[0, 2, 1])
+        # Hess = tf.transpose(tf.stack([ddWI1, ddWI41, ddWI42]), perm=[1, 0, 2])
+        # Hess_t= tf.transpose(Hess, perm=[0, 2, 1])
 
-        ## symmetry of Hessain
-        L_Hess = tf.reduce_mean(tf.reduce_sum(Hess - Hess_t, axis=[-2,-1]))
-        L3 = L_Hess
+        # ## symmetry of Hessain
+        # L_Hess = tf.reduce_mean(tf.reduce_sum(Hess - Hess_t, axis=[-2,-1]))
+        # L3 = L_Hess
 
-        # ## Calculate the minors
-        # Distribute the matrix along the first dimension
-        matrix_list = tf.unstack(Hess)
-        # print(len(matrix_list))
+        # # ## Calculate the minors
+        # # Distribute the matrix along the first dimension
+        # matrix_list = tf.unstack(Hess)
+        # # print(len(matrix_list))
 
-        Delta_k = []
-        for i in range(len(matrix_list)):
-            m = matrix_list[i]
-            det = m[0, 0] * (m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2]) \
-                - m[0, 1] * (m[1, 0] * m[2, 2] - m[2, 0] * m[1, 2]) \
-                + m[0, 2] * (m[1, 0] * m[2, 1] - m[2, 0] * m[1, 1])
-            delta_i = [#tf.gather(m[0], 0),
-                       m[0,0],
-                       m[0,0]*m[1,1] - m[0,1]*m[1,0],
-                       det
-                    #    tf.linalg.det(m)
-            ]
-            # print(delta_i)
-            Delta_k.append(delta_i)
-        Delta_k = tf.stack(Delta_k)
-        # print(Delta_k)
-        # exit()
-        ## positive-definiteness of Hessain
-        L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(tf.math.negative(Delta_k), 0), axis=1))
-        L3 += L_positive
-        # print(L_positive)
-        
-        # a1 = 0.1
-        # a2 = 1
+        # Delta_k = []
+        # for i in range(len(matrix_list)):
+        #     m = matrix_list[i]
+        #     det = m[0, 0] * (m[1, 1] * m[2, 2] - m[2, 1] * m[1, 2]) \
+        #         - m[0, 1] * (m[1, 0] * m[2, 2] - m[2, 0] * m[1, 2]) \
+        #         + m[0, 2] * (m[1, 0] * m[2, 1] - m[2, 0] * m[1, 1])
+        #     delta_i = [#tf.gather(m[0], 0),
+        #                m[0,0],
+        #                m[0,0]*m[1,1] - m[0,1]*m[1,0],
+        #                det
+        #             #    tf.linalg.det(m)
+        #     ]
+        #     # print(delta_i)
+        #     Delta_k.append(delta_i)
+        # Delta_k = tf.stack(Delta_k)
+        # # print(Delta_k)
+        # # exit()
+        # ## positive-definiteness of Hessain
+        # L_positive = tf.reduce_mean(tf.reduce_sum(tf.maximum(tf.math.negative(Delta_k), 0), axis=1))
+        # L3 += L_positive
 
-        total_loss = L1 + L2 + L3
+
+        total_loss = L1 + L2 #+ L3
         return total_loss
 
     return loss_function

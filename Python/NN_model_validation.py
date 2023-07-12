@@ -15,6 +15,39 @@ from tensorflow.keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
 import joblib
 
+
+class CustomModel(tf.keras.Model):
+    # def __init__(self, input_neurons, output_neurons, num_hidden_layers, hidden_neurons):
+    #     super(CustomModel, self).__init__()
+    #     self.dense_input = tf.keras.layers.Dense(hidden_neurons, activation='relu', input_shape=(input_neurons,))
+    #     self.hidden_layers = []
+    #     for _ in range(num_hidden_layers):
+    #         self.hidden_layers.append(tf.keras.layers.Dense(hidden_neurons, activation='relu'))
+    #     self.dense_output = tf.keras.layers.Dense(output_neurons, activation='linear')
+
+    # def call(self, inputs):
+    #     x = inputs
+    #     x = self.dense_input(x)
+    #     for hidden_layer in self.hidden_layers:
+    #         x = hidden_layer(x)
+    #     x = self.dense_output(x)
+    #     return x
+
+    print('hoi')
+    def train_step(self, data):
+        print('train_step')
+        x, y = data
+        Is = x[:,0]
+        lambdas = x[:,1]
+        print(Is)
+        print(lambdas)
+        print(y)
+
+        exit()
+
+    
+
+
 def main(data_dir):
     # Assign the file names and specify the file paths
     current_dir  = os.path.dirname(os.path.abspath(__file__))
@@ -54,21 +87,28 @@ def main(data_dir):
         # input_eval = tf.Variable(X_eval)
 
         # Creating a NN model
+        # input_neurons = 3       #inputs: I1, I41, I42
+        # output_neurons = 4      #outputs: W, dWI1, dWI41, dWI42
+        # num_hidden_layers = 3
+        # hidden_neurons = 8
+        # model = CustomModel(input_neurons, output_neurons, num_hidden_layers, hidden_neurons)
+
         model = Sequential()
         act_fun = 'relu'
-        model.add(Dense(3,activation=act_fun)) #inputs: I1, I41, I42
+        model.add(Dense(3,activation=act_fun))              #inputs: I1, I41, I42
         n_neurons = 8
         for i in range(3):
             model.add(Dense(n_neurons,activation=act_fun))
             model.add(Dropout(0.2))
-        model.add(Dense(4,activation='linear')) #outputs: W, dWI1, dWI41, dWI42
+        model.add(Dense(4,activation='linear'))             #outputs: W, dWI1, dWI41, dWI42
 
         # Compile the model with custom loss function
         # learning_rate = 0.0001  # Specify your desired learning rate
         # optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        optimizer = tf.keras.optimizers.RMSprop()
         model.compile(
-                      optimizer='adam',
-                    #   optimizer=optimizer,
+                    #   optimizer='adam',
+                      optimizer=optimizer,
                       loss=f.custom_loss(model, tf.Variable(tf.convert_to_tensor(X_train)), y_train, cauchy_train, lambda_train,  G41,G42),
                     #   metrics=[f.custom_metric]
                       )
@@ -76,11 +116,19 @@ def main(data_dir):
         # Setup early stop
         # early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10)
 
+        # new input
+        # Convert NumPy arrays to DataFrames
+        df1 = pd.DataFrame(X_train)
+        df2 = pd.DataFrame(lambda_train)
+
+        # Concatenate the DataFrames horizontally
+        x_input = pd.concat([df1, df2], axis=1)
+
         # Training the model
-        model.fit(x=X_train,y=y_train,
+        model.fit(x=x_input.values,y=y_train,
             # validation_data=(X_eval,y_eval.values),
             # batch_size=32,
-            epochs=1000,
+            epochs=100,
             # callbacks=[early_stop]
             )
         
@@ -96,10 +144,6 @@ def main(data_dir):
         scaler = joblib.load('GOH_NN.scaler')
 
     # Evaluate the trained NN
-    # f.plot(data_x,  g,'NN_x.svg',   'NN_offX',        method='NN',model=model,scaler=scaler)
-    # f.plot(data_y,  g,'NN_y.svg',   'NN_offY',        method='NN',model=model,scaler=scaler)
-    # f.plot(data_eq, g,'NN_eq.svg',  'NN_equibiaxial', method='NN',model=model,scaler=scaler)
-
     f.plot(data_x,  g,'NN_x.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
     f.plot(data_y,  g,'NN_y.svg' ,'NN_offX'        ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
     f.plot(data_eq, g,'NN_eq.svg','NN_equibiaxial' ,method='NN',model=model,scaler=scaler,stress_fig=True,energy_fig=True)
